@@ -446,12 +446,12 @@ int owl_message_is_delete(owl_message *m)
 }
 
 #ifdef HAVE_LIBZEPHYR
-ZNotice_t *owl_message_get_notice(owl_message *m)
+ZNotice_t *owl_message_get_notice(owl_message *m) /*noproto*/
 {
   return(&(m->notice));
 }
 #else
-void *owl_message_get_notice(owl_message *m)
+void *owl_message_get_notice(owl_message *m) /*noproto*/
 {
   return(NULL);
 }
@@ -833,6 +833,16 @@ void owl_message_create_from_znotice(owl_message *m, ZNotice_t *n)
     }
   }
 #endif  
+}
+
+int owl_message_get_num_fields(owl_message *m)
+{
+  return owl_zephyr_get_num_fields(owl_message_get_notice(m));
+}
+
+char *owl_message_get_field(owl_message *m, int n)
+{
+  return owl_zephyr_get_field(owl_message_get_notice(m), n);
 }
 #else
 void owl_message_create_from_znotice(owl_message *m, void *n)
