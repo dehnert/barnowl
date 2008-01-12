@@ -120,6 +120,11 @@ void owl_message_attributes_tofmtext(owl_message *m, owl_fmtext *fm) {
   for (i=0; i<j; i++) {
     p=owl_list_get_element(&(m->attributes), i);
     buff=owl_sprintf("  %-15.15s: %-35.35s\n", owl_pair_get_key(p), owl_pair_get_value(p));
+    if(buff == NULL) {
+      buff=owl_sprintf("  %-15.15s: %-35.35s\n", owl_pair_get_key(p), "<error>");
+      if(buff == NULL)
+        buff=owl_strdup("   <error>\n");
+    }
     owl_fmtext_append_normal(fm, buff);
     owl_free(buff);
   }
@@ -324,7 +329,7 @@ int owl_message_is_private(owl_message *m)
 
   res=owl_message_get_attribute_value(m, "isprivate");
   if (!res) return(0);
-  return(1);
+  return !strcmp(res, "true");
 }
 
 char *owl_message_get_timestr(owl_message *m)
