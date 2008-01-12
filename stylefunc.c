@@ -342,5 +342,3 @@ void owl_stylefunc_oneline(owl_fmtext *fm, owl_message *m)
   }    
 
 }
-
-#endif
