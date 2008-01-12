@@ -69,13 +69,11 @@ void owl_stylefunc_basic(owl_fmtext *fm, owl_message *m)
 {
 #ifdef HAVE_LIBZEPHYR
   char *ptr, *zsigbuff, frombuff[LINE];
-  ZNotice_t *n;
 #endif
 
   if (owl_message_is_type_zephyr(m) && owl_message_is_direction_in(m)) {
 #ifdef HAVE_LIBZEPHYR
-    n=owl_message_get_notice(m);
-  
+
     /* edit the from addr for printing */
     strcpy(frombuff, owl_message_get_sender(m));
     ptr=strchr(frombuff, '@');
@@ -225,17 +223,12 @@ void owl_stylefunc_oneline(owl_fmtext *fm, owl_message *m)
   char *tmp;
   char *baseformat="%s %-13.13s %-11.11s %-12.12s ";
   char *sender, *recip;
-#ifdef HAVE_LIBZEPHYR
-  ZNotice_t *n;
-#endif
 
   sender=short_zuser(owl_message_get_sender(m));
   recip=short_zuser(owl_message_get_recipient(m));
   
   if (owl_message_is_type_zephyr(m)) {
 #ifdef HAVE_LIBZEPHYR
-    n=owl_message_get_notice(m);
-    
     owl_fmtext_append_spaces(fm, OWL_TAB);
 
     if (owl_message_is_loginout(m)) {
@@ -349,3 +342,5 @@ void owl_stylefunc_oneline(owl_fmtext *fm, owl_message *m)
   }    
 
 }
+
+#endif
