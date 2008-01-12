@@ -323,6 +323,20 @@ sub __set_attribute {
     $self->{$attr} = $val;
 }
 
+sub __format_attributes {
+    my $self = shift;
+    my %skip = map {$_ => 1} qw(_time fields id deleted __fmtext type);
+    my $text = "";
+    my @keys = sort keys %$self;
+    for my $k (@keys) {
+        my $v = $self->{$k};
+        unless($skip{$k}) {
+            $text .= sprintf("  %-15.15s: %-35.35s\n", $k, $v);
+        }
+    }
+    return $text;
+}
+
 sub type        { return shift->{"type"}; }
 sub direction   { return shift->{"direction"}; }
 sub time        { return shift->{"time"}; }

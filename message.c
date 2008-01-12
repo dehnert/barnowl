@@ -96,32 +96,6 @@ int owl_message_get_attribute_int(owl_message *m, char *attrname)
   return SvIV(attr);
 }
 
-/* We cheat and indent it for now, since we really want this for
- * the 'info' function.  Later there should just be a generic
- * function to indent fmtext.
- */
-void owl_message_attributes_tofmtext(owl_message *m, owl_fmtext *fm) {
-  int i, j;
-  owl_pair *p;
-  char *buff;
-
-  owl_fmtext_init_null(fm);
-
-  // XXX TODO FIXME
-  /*  j=owl_list_get_size(&(m->attributes));
-  for (i=0; i<j; i++) {
-    p=owl_list_get_element(&(m->attributes), i);
-    buff=owl_sprintf("  %-15.15s: %-35.35s\n", owl_pair_get_key(p), owl_pair_get_value(p));
-    if(buff == NULL) {
-      buff=owl_sprintf("  %-15.15s: %-35.35s\n", owl_pair_get_key(p), "<error>");
-      if(buff == NULL)
-        buff=owl_strdup("   <error>\n");
-    }
-    owl_fmtext_append_normal(fm, buff);
-    owl_free(buff);
-    }*/
-}
-
 int owl_message_get_id(owl_message *m) {
   return owl_message_get_attribute_int(m, "id");
 }
@@ -1091,5 +1065,19 @@ void owl_message_curs_waddstr(owl_message *m, WINDOW *win, int aline, int bline,
 
   owl_fmtext_free(&a);
   owl_fmtext_free(&b);
+}
+
+void owl_message_attributes_tofmtext(owl_message *m, owl_fmtext *fm) {
+  int i, j;
+  owl_pair *p;
+  char *buff;
+
+  owl_fmtext_init_null(fm);
+
+  char *text = owl_perlconfig_message_call_method(m, "__format_attributes", 0, NULL);
+
+  owl_fmtext_append_normal(fm, text);
+
+  owl_free(text);
 }
 
