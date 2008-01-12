@@ -140,7 +140,7 @@ owl_message * owl_perlconfig_hashref2message(SV *msg)
 
   hash = (HV*)SvRV(msg);
 
-  m = owl_malloc(sizeof(owl_message));
+  m = owl_message_new();
   owl_message_init(m);
 
   count = hv_iterinit(hash);

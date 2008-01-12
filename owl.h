@@ -334,6 +334,7 @@ typedef struct _owl_pair {
 
 struct _owl_fmtext_cache;
 
+// typedef SV owl_message;
 typedef struct _owl_message {
   int id;
   int direction;
@@ -343,7 +344,7 @@ typedef struct _owl_message {
   struct _owl_fmtext_cache * fmtext;
   int delete;
   char *hostname;
-  owl_list attributes;            /* this is a list of pairs */
+  owl_list attributes;            // this is a list of pairs 
   char *timestr;
   time_t time;
   char *zwriteline;
@@ -353,7 +354,7 @@ typedef struct _owl_message {
 /* We cache the saved fmtexts for the last bunch of messages we
    rendered */
 typedef struct _owl_fmtext_cache {
-    owl_message * message;
+    int message_id;
     owl_fmtext fmtext;
 } owl_fmtext_cache;
 

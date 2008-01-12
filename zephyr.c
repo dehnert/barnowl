@@ -564,7 +564,7 @@ void owl_zephyr_handle_ack(ZNotice_t *retnotice)
   } else if (!strcmp(retnotice->z_message, ZSRVACK_NOTSENT)) {
     #define BUFFLEN 1024
     if (retnotice->z_recipient == NULL
-        || *retnotice->z_recipient == NULL
+        || *retnotice->z_recipient == 0
         || *retnotice->z_recipient == '@') {
       char buff[BUFFLEN];
       owl_function_error("No one subscribed to class %s", retnotice->z_class);
@@ -1097,7 +1097,7 @@ void owl_zephyr_process_events() {
       }
 
       /* create the new message */
-      m=owl_malloc(sizeof(owl_message));
+      m=owl_message_new();
       owl_message_create_from_znotice(m, &notice);
 
       owl_global_messagequeue_addmsg(&g, m);

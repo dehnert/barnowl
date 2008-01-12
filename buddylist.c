@@ -53,7 +53,7 @@ void owl_buddylist_oncoming(owl_buddylist *bl, char *screenname)
     if (!owl_timer_is_expired(owl_global_get_aim_login_timer(&g))) return;
 
     /* if not, create the login message */
-    m=owl_malloc(sizeof(owl_message));
+    m=owl_message_new();
     owl_message_create_aim(m,
 			   screenname,
 			   owl_global_get_aim_screenname(&g),
@@ -72,7 +72,7 @@ void owl_buddylist_offgoing(owl_buddylist *bl, char *screenname)
   owl_message *m;
 
   if (owl_buddylist_is_aim_buddy_loggedin(bl, screenname)) {
-    m=owl_malloc(sizeof(owl_message));
+    m=owl_message_new();
     owl_message_create_aim(m,
 			   screenname,
 			   owl_global_get_aim_screenname(&g),

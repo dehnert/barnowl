@@ -170,7 +170,7 @@ void owl_function_adminmsg(char *header, char *body)
 {
   owl_message *m;
 
-  m=owl_malloc(sizeof(owl_message));
+  m=owl_message_new();
   owl_message_create_admin(m, header, body);
   
   /* add it to the global list and current view */
@@ -202,7 +202,7 @@ owl_message *owl_function_make_outgoing_zephyr(char *body, char *zwriteline, cha
   owl_zwrite_create_from_line(&z, zwriteline);
 
   /* create the message */
-  m=owl_malloc(sizeof(owl_message));
+  m=owl_message_new();
   owl_message_create_from_zwriteline(m, zwriteline, body, zsig);
   owl_zwrite_free(&z);
 
@@ -221,7 +221,7 @@ owl_message *owl_function_make_outgoing_aim(char *body, char *to)
   /* error if we're not logged into aim */
   if (!owl_global_is_aimloggedin(&g)) return(NULL);
   
-  m=owl_malloc(sizeof(owl_message));
+  m=owl_message_new();
   owl_message_create_aim(m,
 			 owl_global_get_aim_screenname(&g),
 			 to,
@@ -240,7 +240,7 @@ owl_message *owl_function_make_outgoing_loopback(char *body)
   owl_message *m;
 
   /* create the message */
-  m=owl_malloc(sizeof(owl_message));
+  m=owl_message_new();
   owl_message_create_loopback(m, body);
   owl_message_set_direction_out(m);
 
@@ -524,7 +524,7 @@ void owl_function_loopwrite(char *msg)
 
   /* create a message and put it on the message queue.  This simulates
    * an incoming message */
-  min=owl_malloc(sizeof(owl_message));
+  min=owl_message_new();
   mout=owl_function_make_outgoing_loopback(msg);
 
   if (owl_global_is_displayoutgoing(&g)) {
@@ -3648,7 +3648,7 @@ void owl_function_zephyr_buddy_check(int notify)
       if ((numlocs>0) && !owl_zbuddylist_contains_user(zbl, user)) {
 	/* Send a PSEUDO LOGIN! */
 	if (notify) {
-	  m=owl_malloc(sizeof(owl_message));
+	  m=owl_message_new();
 	  owl_message_create_pseudo_zlogin(m, 0, user, location[0].host, location[0].time, location[0].tty);
 	  owl_global_messagequeue_addmsg(&g, m);
 	}
@@ -3663,7 +3663,7 @@ void owl_function_zephyr_buddy_check(int notify)
     } else if ((ret==ZERR_NOLOCATIONS) && owl_zbuddylist_contains_user(zbl, user)) {
       /* Send a PSEUDO LOGOUT! */
       if (notify) {
-	m=owl_malloc(sizeof(owl_message));
+	m=owl_message_new();
 	owl_message_create_pseudo_zlogin(m, 1, user, "", "", "");
 	owl_global_messagequeue_addmsg(&g, m);
       }
