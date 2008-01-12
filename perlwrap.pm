@@ -289,14 +289,38 @@ sub _new_variable {
 #####################################################################
 
 package BarnOwl::Message;
+use POSIX qw(ctime);
+
+my $__next_id;
+$__next_id = 1 unless defined($__next_id);
 
 sub new {
     my $class = shift;
-    my %args = (@_);
+    my $time = time;
+    my $timestr = ctime($time);
+    $timestr =~ s/\n$//;
+    my %args = (
+        id        => $__next_id++,
+        deleted   => 0,
+        time      => $timestr,
+        _time     => $time,
+        direction => 'none',
+        @_);
+    if(exists $args{loginout} && !exists $args{login}) {
+        $args{login} = $args{loginout};
+        delete $args{loginout};
+    }
     if($class eq __PACKAGE__ && $args{type}) {
         $class = "BarnOwl::Message::" . ucfirst $args{type};
     }
     return bless {%args}, $class;
+}
+
+sub __set_attribute {
+    my $self = shift;
+    my $attr = shift;
+    my $val  = shift;
+    $self->{$attr} = $val;
 }
 
 sub type        { return shift->{"type"}; }
@@ -306,7 +330,7 @@ sub id          { return shift->{"id"}; }
 sub body        { return shift->{"body"}; }
 sub sender      { return shift->{"sender"}; }
 sub recipient   { return shift->{"recipient"}; }
-sub login       { return shift->{"login"}; }
+sub login       { return shift->{"login"} || ""; }
 sub is_private  { return shift->{"private"}; }
 
 sub is_login    { return shift->login eq "login"; }

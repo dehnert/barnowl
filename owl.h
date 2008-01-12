@@ -64,6 +64,8 @@
 typedef void WINDOW;
 /* logout is defined in FreeBSD. */
 #define logout logout_
+/* aim.h defines bool */
+#define HAS_BOOL
 #include <perl.h>
 #undef logout
 #include "XSUB.h"
@@ -73,14 +75,14 @@ typedef void SV;
 
 static const char owl_h_fileIdent[] = "$Id$";
 
-#define STRINGIFY(x) _STRINGIFY(x)
+#define BARNOWL_STRINGIFY(x) _STRINGIFY(x)
 #define _STRINGIFY(x) #x
 
 #ifndef OWL_SVN_REVNO
 #define OWL_SVN_REVNO ????
 #endif
 
-#define OWL_VERSION_STRING "r" STRINGIFY(OWL_SVN_REVNO)
+#define OWL_VERSION_STRING "r" BARNOWL_STRINGIFY(OWL_SVN_REVNO)
 
 
 /* Feature that is being tested to redirect stderr through a pipe. 
@@ -118,9 +120,9 @@ static const char owl_h_fileIdent[] = "$Id$";
 #define OWL_PROTOCOL_YAHOO          4
 #define OWL_PROTOCOL_MSN            5
 
-#define OWL_MESSAGE_DIRECTION_NONE  0
-#define OWL_MESSAGE_DIRECTION_IN    1
-#define OWL_MESSAGE_DIRECTION_OUT   2
+#define OWL_MESSAGE_DIRECTION_NONE  "none"
+#define OWL_MESSAGE_DIRECTION_IN    "in"
+#define OWL_MESSAGE_DIRECTION_OUT   "out"
 
 #define OWL_MUX_READ   1
 #define OWL_MUX_WRITE  2
@@ -334,8 +336,8 @@ typedef struct _owl_pair {
 
 struct _owl_fmtext_cache;
 
-// typedef SV owl_message;
-typedef struct _owl_message {
+typedef SV owl_message;
+/* typedef struct _owl_message {
   int id;
   int direction;
 #ifdef HAVE_LIBZEPHYR
@@ -348,7 +350,7 @@ typedef struct _owl_message {
   char *timestr;
   time_t time;
   char *zwriteline;
-} owl_message;
+  } owl_message; */
 
 #define OWL_FMTEXT_CACHE_SIZE 1000
 /* We cache the saved fmtexts for the last bunch of messages we

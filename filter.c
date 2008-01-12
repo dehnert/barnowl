@@ -306,20 +306,20 @@ int owl_filter_test_string(char * filt, owl_message *m, int shouldmatch) /* nopr
 
 int owl_filter_regtest(void) {
   int numfailed=0;
-  owl_message m;
+  owl_message *m = owl_message_new();;
   owl_filter f1, f2, f3, f4;
 
   owl_list_create(&(g.filterlist));
-  owl_message_init(&m);
-  owl_message_set_type_zephyr(&m);
-  owl_message_set_direction_in(&m);
-  owl_message_set_class(&m, "owl");
-  owl_message_set_instance(&m, "tester");
-  owl_message_set_sender(&m, "owl-user");
-  owl_message_set_recipient(&m, "joe");
-  owl_message_set_attribute(&m, "foo", "bar");
+  owl_message_init(m);
+  owl_message_set_type_zephyr(m);
+  owl_message_set_direction_in(m);
+  owl_message_set_class(m, "owl");
+  owl_message_set_instance(m, "tester");
+  owl_message_set_sender(m, "owl-user");
+  owl_message_set_recipient(m, "joe");
+  owl_message_set_attribute(m, "foo", "bar");
 
-#define TEST_FILTER(f, e) numfailed += owl_filter_test_string(f, &m, e)
+#define TEST_FILTER(f, e) numfailed += owl_filter_test_string(f, m, e)
 
 
   TEST_FILTER("true", 1);

@@ -27,90 +27,7 @@ static void owl_perl_xs_init(pTHX)
 
 SV *owl_perlconfig_message2hashref(owl_message *m)
 {
-  HV *h, *stash;
-  SV *hr;
-  char *ptr, *blessas, *type;
-  int i, j;
-  owl_pair *pair;
-  owl_filter *wrap;
-
-  if (!m) return &PL_sv_undef;
-  wrap = owl_global_get_filter(&g, "wordwrap");
-  if(!wrap) {
-      owl_function_error("wrap filter is not defined");
-      return &PL_sv_undef;
-  }
-
-  h = newHV();
-
-#define MSG2H(h,field) hv_store(h, #field, strlen(#field), \
-			      newSVpv(owl_message_get_##field(m),0), 0)
-
-  if (owl_message_is_type_zephyr(m)
-      && owl_message_is_direction_in(m)) {
-    /* Handle zephyr-specific fields... */
-    AV *av_zfields;
-
-    av_zfields = newAV();
-    j=owl_zephyr_get_num_fields(owl_message_get_notice(m));
-    for (i=0; i<j; i++) {
-      ptr=owl_zephyr_get_field(owl_message_get_notice(m), i+1);
-      av_push(av_zfields, newSVpvn(ptr, strlen(ptr)));
-      owl_free(ptr);
-    }
-    hv_store(h, "fields", strlen("fields"), newRV_noinc((SV*)av_zfields), 0);
-
-    hv_store(h, "auth", strlen("auth"), 
-	     newSVpv(owl_zephyr_get_authstr(owl_message_get_notice(m)),0),0);
-  }
-
-  j=owl_list_get_size(&(m->attributes));
-  for(i=0; i<j; i++) {
-    pair=owl_list_get_element(&(m->attributes), i);
-    hv_store(h, owl_pair_get_key(pair), strlen(owl_pair_get_key(pair)),
-	     newSVpv(owl_pair_get_value(pair),0),0);
-  }
-  
-  MSG2H(h, type);
-  MSG2H(h, direction);
-  MSG2H(h, class);
-  MSG2H(h, instance);
-  MSG2H(h, sender);
-  MSG2H(h, realm);
-  MSG2H(h, recipient);
-  MSG2H(h, opcode);
-  MSG2H(h, hostname);
-  MSG2H(h, body);
-  MSG2H(h, login);
-  MSG2H(h, zsig);
-  MSG2H(h, zwriteline);
-  if (owl_message_get_header(m)) {
-    MSG2H(h, header); 
-  }
-  hv_store(h, "time", strlen("time"), newSVpv(owl_message_get_timestr(m),0),0);
-  hv_store(h, "id", strlen("id"), newSViv(owl_message_get_id(m)),0);
-  hv_store(h, "deleted", strlen("deleted"), newSViv(owl_message_is_delete(m)),0);
-  hv_store(h, "private", strlen("private"), newSViv(owl_message_is_private(m)),0);
-  hv_store(h, "should_wordwrap",
-	   strlen("should_wordwrap"), newSViv(
-					      owl_filter_message_match(wrap, m)),0);
-
-  type = owl_message_get_type(m);
-  if(!type || !*type) type = "generic";
-  type = owl_strdup(type);
-  type[0] = toupper(type[0]);
-  blessas = owl_sprintf("BarnOwl::Message::%s", type);
-
-  hr = sv_2mortal(newRV_noinc((SV*)h));
-  stash =  gv_stashpv(blessas,0);
-  if(!stash) {
-    owl_function_error("No such class: %s for message type %s", blessas, owl_message_get_type(m));
-    stash = gv_stashpv("BarnOwl::Message", 1);
-  }
-  hr = sv_bless(hr,stash);
-  owl_free(type);
-  owl_free(blessas);
-  return hr;
+  return (SV*)m;
 }
 
 SV *owl_perlconfig_curmessage2hashref(void) /*noproto*/
@@ -125,54 +42,9 @@ SV *owl_perlconfig_curmessage2hashref(void) /*noproto*/
   return owl_perlconfig_message2hashref(owl_view_get_element(v, curmsg));
 }
 
-/* XXX TODO: Messages should round-trip properly between
-   message2hashref and hashref2message. Currently we lose
-   zephyr-specific properties stored in the ZNotice_t
- */
 owl_message * owl_perlconfig_hashref2message(SV *msg)
 {
-  owl_message * m;
-  HE * ent;
-  I32 count, len;
-  char *key,*val;
-  HV * hash;
-  struct tm tm;
-
-  hash = (HV*)SvRV(msg);
-
-  m = owl_message_new();
-  owl_message_init(m);
-
-  count = hv_iterinit(hash);
-  while((ent = hv_iternext(hash))) {
-    key = hv_iterkey(ent, &len);
-    val = SvPV_nolen(hv_iterval(hash, ent));
-    if(!strcmp(key, "type")) {
-      owl_message_set_type(m, val);
-    } else if(!strcmp(key, "direction")) {
-      owl_message_set_direction(m, owl_message_parse_direction(val));
-    } else if(!strcmp(key, "private")) {
-      SV * v = hv_iterval(hash, ent);
-      if(SvTRUE(v)) {
-        owl_message_set_isprivate(m);
-      }
-    } else if (!strcmp(key, "hostname")) {
-      owl_message_set_hostname(m, val);
-    } else if (!strcmp(key, "zwriteline")) {
-      owl_message_set_zwriteline(m, val);
-    } else if (!strcmp(key, "time")) {
-      m->timestr = owl_strdup(val);
-      strptime(val, "%a %b %d %T %Y", &tm);
-      m->time = mktime(&tm);
-    } else {
-      owl_message_set_attribute(m, key, val);
-    }
-  }
-  if(owl_message_is_type_admin(m)) {
-    if(!owl_message_get_attribute_value(m, "adminheader"))
-      owl_message_set_attribute(m, "adminheader", "");
-  }
-  return m;
+  return (owl_message*)SvREFCNT_inc(msg);
 }
 
 /* Calls in a scalar context, passing it a hash reference.
