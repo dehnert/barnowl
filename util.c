@@ -567,9 +567,8 @@ void owl_hack_animate()
   char *text, *ptr;
   int place;
 
-  /* grab the first message and make sure its id is 0 */
   ml=owl_global_get_msglist(&g);
-  m=owl_messagelist_get_element(ml, 0);
+  m=owl_messagelist_get_by_id(ml, 0);
   if (!m) return;
   if (owl_message_get_id(m)!=0) return;
 
