@@ -28,7 +28,7 @@ owl_message *owl_message_new() {
   XPUSHs(sv_2mortal(newSVpv("BarnOwl::Message", 0)));
   PUTBACK;
 
-  count = call_method("new", G_SCALAR|G_EVAL|G_KEEPERR);
+  count = call_method("new", G_SCALAR|G_EVAL);
 
   SPAGAIN;
 
@@ -989,15 +989,19 @@ void owl_message_invalidate_format(owl_message *m)
 owl_fmtext_cache *owl_message_get_fmtext_cache(owl_message *m)
 {
   SV *fmtext = owl_message_get_attribute_internal(m, "__fmtext");
-  if(fmtext && SvROK(fmtext))
-    return INT2PTR(owl_fmtext_cache*, SvIV(SvRV(fmtext)));
+  if(fmtext && SvROK(fmtext)) {
+    int fm_which = SvIV(SvRV(fmtext));
+    if(fm_which >= 0 && fm_which < OWL_FMTEXT_CACHE_SIZE) {
+      return fmtext_cache + fm_which;
+    }
+  }
   return NULL;
 }
 
 void owl_message_set_fmtext_cache(owl_message *m, owl_fmtext_cache *fm)
 {
   SV *fmtext = newSV(0);
-  sv_setref_pv(fmtext, Nullch, fm);
+  sv_setref_iv(fmtext, Nullch, (fm - fmtext_cache));
   HV *hash = (HV*)SvRV((SV*)m);
   hv_store(hash, "__fmtext", strlen("__fmtext"), fmtext, 0);
 }
@@ -1068,10 +1072,6 @@ void owl_message_curs_waddstr(owl_message *m, WINDOW *win, int aline, int bline,
 }
 
 void owl_message_attributes_tofmtext(owl_message *m, owl_fmtext *fm) {
-  int i, j;
-  owl_pair *p;
-  char *buff;
-
   owl_fmtext_init_null(fm);
 
   char *text = owl_perlconfig_message_call_method(m, "__format_attributes", 0, NULL);
