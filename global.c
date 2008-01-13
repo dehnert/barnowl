@@ -629,6 +629,12 @@ owl_view *owl_global_get_current_view(owl_global *g) {
   return(&(g->current_view));
 }
 
+owl_message *owl_global_get_current_message(owl_global *g) {
+  owl_view *cur = owl_global_get_current_view(g);
+  if(owl_view_get_size(cur) < 1) return NULL;
+  return owl_view_get_element(cur, owl_global_get_curmsg(g));
+}
+
 /* has colors */
 
 int owl_global_get_hascolors(owl_global *g) {

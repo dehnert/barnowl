@@ -2015,9 +2015,7 @@ char *owl_command_reply(int argc, char **argv, char *buff)
     owl_function_reply(1, !edit);
   } else if (argc==2 && !strcmp(argv[1], "zaway")) {
     owl_message *m;
-    owl_view    *v;
-    v = owl_global_get_current_view(&g);    
-    m = owl_view_get_element(v, owl_global_get_curmsg(&g));
+    m = owl_global_get_current_message(&g);
     if (m) owl_zephyr_zaway(m);
   } else {
     owl_function_makemsg("Invalid arguments to the reply command.");
@@ -2584,18 +2582,16 @@ char *owl_command_message(int argc, char **argv, char *buff)
 void owl_command_yes(void)
 {
   owl_message *m;
-  owl_view *v;
   char *cmd;
 
-  v = owl_global_get_current_view(&g);
+  m = owl_global_get_current_message(&g);
 
   /* bail if there's no current message */
-  if (owl_view_get_size(v) < 1) {
+  if (m == NULL) {
     owl_function_error("No current message.");
     return;
   }
 
-  m = owl_view_get_element(v, owl_global_get_curmsg(&g));
   if(!owl_message_is_question(m)) {
     owl_function_error("That message isn't a question.");
     return;
@@ -2618,18 +2614,16 @@ void owl_command_yes(void)
 void owl_command_no(void)
 {
   owl_message *m;
-  owl_view *v;
   char *cmd;
 
-  v = owl_global_get_current_view(&g);
+  m = owl_global_get_current_message(&g);
 
   /* bail if there's no current message */
-  if (owl_view_get_size(v) < 1) {
+  if (m == NULL) {
     owl_function_error("No current message.");
     return;
   }
 
-  m = owl_view_get_element(v, owl_global_get_curmsg(&g));
   if(!owl_message_is_question(m)) {
     owl_function_error("That message isn't a question.");
     return;

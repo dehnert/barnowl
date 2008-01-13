@@ -32,14 +32,11 @@ SV *owl_perlconfig_message2hashref(owl_message *m)
 
 SV *owl_perlconfig_curmessage2hashref(void) /*noproto*/
 {
-  int curmsg;
-  owl_view *v;
-  v=owl_global_get_current_view(&g);
-  if (owl_view_get_size(v) < 1) {
+  owl_message *m = owl_global_get_current_message(&g);
+  if(m == NULL) {
     return &PL_sv_undef;
   }
-  curmsg=owl_global_get_curmsg(&g);
-  return owl_perlconfig_message2hashref(owl_view_get_element(v, curmsg));
+  return owl_perlconfig_message2hashref(m);
 }
 
 owl_message * owl_perlconfig_hashref2message(SV *msg)
@@ -52,7 +49,8 @@ owl_message * owl_perlconfig_hashref2message(SV *msg)
 char *owl_perlconfig_call_with_message(char *subname, owl_message *m)
 {
   dSP ;
-  int count, len;
+  int count;
+  unsigned int len;
   SV *msgref, *srv;
   char *out, *preout;
   
@@ -335,7 +333,7 @@ char *owl_perlconfig_perlcmd(owl_cmd *cmd, int argc, char **argv)
 
   if(SvTRUE(ERRSV)) {
     owl_function_error("%s", SvPV(ERRSV, n_a));
-    POPs;
+    (void)POPs;
   } else {
     if(count != 1)
       croak("Perl command %s returned more than one value!", cmd->name);
