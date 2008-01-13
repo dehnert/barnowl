@@ -1481,9 +1481,6 @@ void owl_function_info()
   owl_message *m;
   owl_fmtext fm, attrfm;
   char buff[10000];
-#ifdef HAVE_LIBZEPHYR
-  ZNotice_t *n;
-#endif
 
   owl_fmtext_init_null(&fm);
   
