@@ -64,7 +64,7 @@ char *owl_perlconfig_call_with_message(char *subname, owl_message *m)
   XPUSHs(msgref);
   PUTBACK ;
   
-  count = call_pv(subname, G_SCALAR|G_EVAL|G_KEEPERR);
+  count = call_pv(subname, G_SCALAR|G_EVAL);
   
   SPAGAIN ;
 
@@ -121,7 +121,7 @@ char * owl_perlconfig_message_call_method(owl_message *m, char *method, int argc
   }
   PUTBACK;
 
-  count = call_method(method, G_SCALAR|G_KEEPERR|G_EVAL);
+  count = call_method(method, G_SCALAR|G_EVAL);
 
   SPAGAIN;
 
@@ -373,7 +373,7 @@ void owl_perlconfig_edit_callback(owl_editwin *e)
   XPUSHs(sv_2mortal(newSVpv(owl_editwin_get_text(e), 0)));
   PUTBACK;
   
-  call_sv(cb, G_DISCARD|G_KEEPERR|G_EVAL);
+  call_sv(cb, G_DISCARD|G_EVAL);
 
   if(SvTRUE(ERRSV)) {
     owl_function_error("%s", SvPV(ERRSV, n_a));
