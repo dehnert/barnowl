@@ -8,7 +8,7 @@ void owl_view_create(owl_view *v, char *name, owl_filter *f, owl_style *s)
   v->name=owl_strdup(name);
   v->filter=f;
   v->style=s;
-  owl_messagelist_create(&(v->ml));
+  owl_list_create(&(v->messages));
   owl_view_recalculate(v);
 }
 
@@ -21,7 +21,8 @@ char *owl_view_get_name(owl_view *v)
 void owl_view_consider_message(owl_view *v, owl_message *m)
 {
   if (owl_filter_message_match(v->filter, m)) {
-    owl_messagelist_append_element(&(v->ml), m);
+    owl_list_append_element(&(v->messages),
+                            (void*)owl_message_get_id(m));
   }
 }
 
@@ -32,22 +33,22 @@ void owl_view_recalculate(owl_view *v)
 {
   int i, j;
   owl_messagelist *gml;
-  owl_messagelist *ml;
+  owl_list *ml;
   owl_message *m;
 
   gml=owl_global_get_msglist(&g);
-  ml=&(v->ml);
+  ml=&(v->messages);
 
   /* nuke the old list */
-  owl_list_free_simple((owl_list *) ml);
-  owl_messagelist_create(&(v->ml));
+  owl_list_free_simple(ml);
+  owl_list_create(ml);
 
   /* find all the messages we want */
   j=owl_messagelist_get_size(gml);
   for (i=0; i<j; i++) {
     m=owl_messagelist_get_element(gml, i);
     if (owl_filter_message_match(v->filter, m)) {
-      owl_messagelist_append_element(ml, m);
+      owl_list_append_element(ml, (void*)owl_message_get_id(m));
     }
   }
 }
@@ -74,22 +75,23 @@ char *owl_view_get_style_name(owl_view *v) {
 
 owl_message *owl_view_get_element(owl_view *v, int index)
 {
-  return(owl_messagelist_get_element(&(v->ml), index));
+  int id = (int)owl_list_get_element(&(v->messages), index);
+  return owl_messagelist_get_by_id(owl_global_get_msglist(&g), id);
 }
 
 void owl_view_delete_element(owl_view *v, int index)
 {
-  owl_messagelist_delete_element(&(v->ml), index);
+  owl_message_mark_delete(owl_view_get_element(v, index));
 }
 
 void owl_view_undelete_element(owl_view *v, int index)
 {
-  owl_messagelist_undelete_element(&(v->ml), index);
+  owl_message_unmark_delete(owl_view_get_element(v, index));
 }
 
 int owl_view_get_size(owl_view *v)
 {
-  return(owl_messagelist_get_size(&(v->ml)));
+  return(owl_list_get_size(&(v->messages)));
 }
 
 /* Returns the position in the view with a message closest 
@@ -102,7 +104,7 @@ int owl_view_get_nearest_to_msgid(owl_view *v, int targetid)
   last = max = owl_view_get_size(v) - 1;
   while (first <= last) {
     mid = (first + last) / 2;
-    curid = owl_message_get_id(owl_view_get_element(v, mid));
+    curid = (int)owl_list_get_element(&(v->messages), mid);
     if (curid == targetid) {
       return(mid);
     } else if (curid < targetid) {
@@ -113,11 +115,11 @@ int owl_view_get_nearest_to_msgid(owl_view *v, int targetid)
   }
   bestdist = abs(targetid-curid);
   if (curid < targetid && mid+1 < max) {
-    curid = owl_message_get_id(owl_view_get_element(v, mid+1));
+    curid = (int)owl_list_get_element(&(v->messages), mid+1);
     mid = (bestdist < abs(targetid-curid)) ? mid : mid+1;
   }
   else if (curid > targetid && mid-1 >= 0) {
-    curid = owl_message_get_id(owl_view_get_element(v, mid-1));
+    curid = (int)owl_list_get_element(&(v->messages), mid-1);
     mid = (bestdist < abs(targetid-curid)) ? mid : mid-1;
   }
   return mid;
@@ -162,6 +164,6 @@ char *owl_view_get_filtname(owl_view *v)
 
 void owl_view_free(owl_view *v)
 {
-  owl_list_free_simple((owl_list *) &(v->ml));
+  owl_list_free_simple(&(v->messages));
   if (v->name) owl_free(v->name);
 }

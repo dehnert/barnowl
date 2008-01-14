@@ -48,21 +48,6 @@ int owl_messagelist_append_element(owl_messagelist *ml, void *element)
   return(owl_list_append_element(&(ml->list), element));
 }
 
-/* do we really still want this? */
-int owl_messagelist_delete_element(owl_messagelist *ml, int n)
-{
-  /* mark a message as deleted */
-  owl_message_mark_delete(owl_list_get_element(&(ml->list), n));
-  return(0);
-}
-
-int owl_messagelist_undelete_element(owl_messagelist *ml, int n)
-{
-  /* mark a message as deleted */
-  owl_message_unmark_delete(owl_list_get_element(&(ml->list), n));
-  return(0);
-}
-
 int owl_messagelist_expunge(owl_messagelist *ml)
 {
   /* expunge deleted messages */

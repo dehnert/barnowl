@@ -437,7 +437,7 @@ typedef struct _owl_filter {
 typedef struct _owl_view {
   char *name;
   owl_filter *filter;
-  owl_messagelist ml;
+  owl_list messages;
   owl_style *style;
 } owl_view;
 
