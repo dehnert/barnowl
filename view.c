@@ -31,7 +31,6 @@ void owl_view_consider_message(owl_view *v, owl_message *m)
  */
 void owl_view_recalculate(owl_view *v)
 {
-  int i, j;
   owl_messagelist *gml;
   owl_list *ml;
   owl_message *m;
@@ -44,9 +43,8 @@ void owl_view_recalculate(owl_view *v)
   owl_list_create(ml);
 
   /* find all the messages we want */
-  j=owl_messagelist_get_size(gml);
-  for (i=0; i<j; i++) {
-    m=owl_messagelist_get_element(gml, i);
+  owl_messagelist_start_iterate(gml);
+  while((m = owl_messagelist_iterate_next(gml)) != NULL) {
     if (owl_filter_message_match(v->filter, m)) {
       owl_list_append_element(ml, (void*)owl_message_get_id(m));
     }

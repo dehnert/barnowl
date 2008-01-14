@@ -15,9 +15,17 @@ int owl_messagelist_get_size(owl_messagelist *ml)
   return(owl_list_get_size(&(ml->list)));
 }
 
-void *owl_messagelist_get_element(owl_messagelist *ml, int n)
-{
-  return(owl_list_get_element(&(ml->list), n));
+void owl_messagelist_start_iterate(owl_messagelist *ml) {
+  ml->iterator = 0;
+}
+
+owl_message *owl_messagelist_iterate_next(owl_messagelist *ml) {
+  owl_message *m = NULL;
+  if(ml->iterator >= 0 && ml->iterator < owl_list_get_size(&(ml->list))) {
+    m = owl_list_get_element(&(ml->list), ml->iterator);
+    ml->iterator++;
+  }
+  return m;
 }
 
 owl_message *owl_messagelist_get_by_id(owl_messagelist *ml, int target_id)
