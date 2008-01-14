@@ -342,8 +342,7 @@ sub expunge {
 package BarnOwl::Message;
 use POSIX qw(ctime);
 
-my $__next_id;
-$__next_id = 1 unless defined($__next_id);
+my $__next_id = 0;
 
 sub new {
     my $class = shift;
