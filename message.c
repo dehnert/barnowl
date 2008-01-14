@@ -76,6 +76,18 @@ void owl_message_set_attribute(owl_message *m, char *attrname, char *attrvalue)
  */
 char *owl_message_get_attribute_value(owl_message *m, char *attrname)
 {
+  /*
+   * Horrible kludge for historical reasons.
+   *
+   * Stock owl stores a ``isprivate'' field in C code, and a
+   * ``private'' field in perl, and converts between them when
+   * marshalling. Since perl and C now read the same objects, we unify
+   * on ``private'', but need to provide support for old filters which
+   * use ``isprivate''.
+   *
+   * This kludge could arguably live in filter.c instead.
+   */
+  if(!strcmp(attrname, "isprivate")) attrname = "private";
   SV *attr = owl_message_get_attribute_internal(m, attrname);
   if(attr == NULL || !SvOK(attr)) return NULL;
   return SvPV_nolen(attr);
