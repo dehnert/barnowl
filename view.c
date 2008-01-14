@@ -73,6 +73,8 @@ char *owl_view_get_style_name(owl_view *v) {
 
 owl_message *owl_view_get_element(owl_view *v, int index)
 {
+  if(index < 0 || index >= owl_view_get_size(v))
+    return NULL;
   int id = (int)owl_list_get_element(&(v->messages), index);
   return owl_messagelist_get_by_id(owl_global_get_msglist(&g), id);
 }
