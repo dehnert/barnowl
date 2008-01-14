@@ -17,34 +17,7 @@ static owl_fmtext_cache fmtext_cache[OWL_FMTEXT_CACHE_SIZE];
 static owl_fmtext_cache * fmtext_cache_next = fmtext_cache;
 
 owl_message *owl_message_new() {
-  dSP;
-  SV *msg;
-  int count;
-
-  ENTER;
-  SAVETMPS;
-
-  PUSHMARK(SP);
-  XPUSHs(sv_2mortal(newSVpv("BarnOwl::Message", 0)));
-  PUTBACK;
-
-  count = call_method("new", G_SCALAR|G_EVAL);
-
-  SPAGAIN;
-
-  if (SvTRUE(ERRSV)) {
-    printf("Ooops: %s\n", SvPV_nolen(ERRSV));
-    exit(-1);
-  }
-
-  msg = POPs;
-  SvREFCNT_inc(msg);
-
-  PUTBACK;
-  FREETMPS;
-  LEAVE;
-
-  return (owl_message*)msg;
+  return (owl_message*)owl_perl_new("BarnOwl::Message");
 }
 
 void owl_message_init(owl_message *m)

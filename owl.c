@@ -247,6 +247,9 @@ int main(int argc, char **argv, char **env)
     exit(1);
   }
 
+  /* Now that we have perl, we can initialize the msssage list*/
+  g.msglist = owl_messagelist_new();
+
   /* setup the built-in styles */
   owl_function_debugmsg("startup: creating built-in styles");
 

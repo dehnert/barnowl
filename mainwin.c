@@ -113,7 +113,7 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
     getyx(recwin, y, x);
     wattrset(recwin, A_NORMAL);
     if (owl_global_get_rightshift(&g)==0) {   /* this lame and should be fixed */
-      if (m==owl_view_get_element(v, curmsg)) {
+      if (owl_message_get_id(m)==owl_message_get_id(owl_view_get_element(v, curmsg))) {
 	wmove(recwin, savey, 0);
 	wattron(recwin, A_BOLD);	
 	if (owl_global_get_curmsg_vert_offset(&g)>0) {

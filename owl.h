@@ -67,6 +67,7 @@ typedef void WINDOW;
 /* aim.h defines bool */
 #define HAS_BOOL
 #include <perl.h>
+#include "owl_perl.h"
 #undef logout
 #include "XSUB.h"
 #else
@@ -403,10 +404,7 @@ typedef struct _owl_popexec {
   int rfd;  
 } owl_popexec;
 
-typedef struct _owl_messagelist {
-  owl_list list;
-  int iterator;
-} owl_messagelist;
+typedef SV owl_messagelist;
 
 typedef struct _owl_regex {
   int negate;
@@ -556,7 +554,7 @@ typedef struct _owl_global {
   int curmsg, topmsg;
   int curmsg_vert_offset;
   owl_view current_view;
-  owl_messagelist msglist;
+  owl_messagelist *msglist;
   WINDOW *recwin, *sepwin, *msgwin, *typwin;
   int needrefresh;
   int rightshift;

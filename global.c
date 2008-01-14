@@ -92,7 +92,6 @@ void owl_global_init(owl_global *g) {
   owl_global_set_confdir(g, cd);
   owl_free(cd);
 
-  owl_messagelist_create(&(g->msglist));
   owl_mainwin_init(&(g->mw));
   owl_popwin_init(&(g->pw));
 
@@ -211,7 +210,7 @@ owl_popwin *owl_global_get_popwin(owl_global *g) {
 /* msglist */
 
 owl_messagelist *owl_global_get_msglist(owl_global *g) {
-  return(&(g->msglist));
+  return g->msglist;
 }
 
 /* keyhandler */
