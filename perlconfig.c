@@ -390,3 +390,13 @@ SV * owl_perl_new(char *class)
                        );
   return obj;
 }
+
+void owl_perl_savetmps() {
+  ENTER;
+  SAVETMPS;
+}
+
+void owl_perl_freetmps() {
+  FREETMPS;
+  LEAVE;
+}

@@ -419,6 +419,8 @@ int main(int argc, char **argv, char **env)
   /* main loop */
   while (1) {
 
+    owl_perl_savetmps();
+
     /* if a resize has been scheduled, deal with it */
     owl_global_resize(&g, 0, 0);
 
@@ -579,6 +581,8 @@ int main(int argc, char **argv, char **env)
 			   si.si_code, si.si_band, si.si_errno);
       }
     }
+
+    owl_perl_freetmps();
 
   }
 }

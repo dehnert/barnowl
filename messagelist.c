@@ -42,7 +42,7 @@ owl_message *owl_messagelist_iterate_next(owl_messagelist *ml) {
                        msg = POPs;
                        if(SvROK(msg)) SvREFCNT_inc(msg);
                        );
-  return SvROK(msg) ? msg : NULL;
+  return SvROK(msg) ? sv_2mortal(msg) : NULL;
 }
 
 owl_message *owl_messagelist_get_by_id(owl_messagelist *ml, int target_id)
@@ -56,7 +56,7 @@ owl_message *owl_messagelist_get_by_id(owl_messagelist *ml, int target_id)
                        msg = POPs;
                        if(SvROK(msg)) SvREFCNT_inc(msg);
                        );
-  return SvROK(msg) ? msg : NULL;
+  return SvROK(msg) ? sv_2mortal(msg) : NULL;
 }
 
 void owl_messagelist_append_element(owl_messagelist *ml, owl_message *msg)
