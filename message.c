@@ -929,6 +929,16 @@ void owl_message_pretty_zsig(owl_message *m, char *buff)
   if (ptr) ptr[0]='\0';
 }
 
+void owl_message_retain(owl_message *m)
+{
+  SvREFCNT_inc((SV*)m);
+}
+
+void owl_message_release(owl_message *m)
+{
+  SvREFCNT_dec((SV*)m);
+}
+
 void owl_message_free(owl_message *m)
 {
   owl_message_invalidate_format(m);

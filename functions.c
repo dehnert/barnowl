@@ -174,8 +174,8 @@ void owl_function_adminmsg(char *header, char *body)
   owl_message_create_admin(m, header, body);
   
   /* add it to the global list and current view */
-  owl_messagelist_append_element(owl_global_get_msglist(&g), m);
   owl_view_consider_message(owl_global_get_current_view(&g), m);
+  owl_messagelist_append_element(owl_global_get_msglist(&g), m);
 
   /* do followlast if necessary */
   if (owl_global_should_followlast(&g)) owl_function_lastmsg_noredisplay();
