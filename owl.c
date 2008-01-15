@@ -619,8 +619,6 @@ int owl_process_message(owl_message *m) {
     return 0;
   }
 
-  owl_message_retain(m);
-
   /* add it to the global list */
   owl_messagelist_append_element(owl_global_get_msglist(&g), m);
   /* add it to any necessary views; right now there's only the current view */
@@ -687,7 +685,6 @@ int owl_process_message(owl_message *m) {
 
   /* log the message if we need to */
   owl_log_message(m);
-  owl_message_release(m);
 
   return 1;
 }

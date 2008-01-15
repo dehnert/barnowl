@@ -70,7 +70,7 @@ void owl_messagelist_append_element(owl_messagelist *ml, owl_message *msg)
                        );
   // When we insert the message, perl code takes ownership of it, so
   // we relinquish our reference
-  SvREFCNT_dec((SV*)msg);
+  sv_2mortal(msg);
 }
 
 void owl_messagelist_expunge(owl_messagelist *ml)
