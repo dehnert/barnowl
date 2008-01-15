@@ -749,7 +749,7 @@ void stderr_redirect_handler(int handle, int rfd, int eventmask, void *data)
   }
   /*owl_function_debugmsg("stderr_redirect: navail = %d\n", navail);*/
   if (navail<=0) return;
-  if (navail>256) { navail = 256; }
+  /* if (navail>256) { navail = 256; } */
   buf = owl_malloc(navail+1);
   bread = read(rfd, buf, navail);
   if (buf[navail-1] != '\0') {
