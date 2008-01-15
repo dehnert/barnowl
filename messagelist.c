@@ -68,6 +68,9 @@ void owl_messagelist_append_element(owl_messagelist *ml, void *element)
                        1, // Fatal
                        OWL_PERL_VOID_CALL
                        );
+  // When we insert the message, perl code takes ownership of it, so
+  // we relinquish our reference count on the HV that is the message
+  SvREFCNT_dec(SvRV((SV*)element));
 }
 
 void owl_messagelist_expunge(owl_messagelist *ml)
