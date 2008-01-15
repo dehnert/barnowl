@@ -59,18 +59,18 @@ owl_message *owl_messagelist_get_by_id(owl_messagelist *ml, int target_id)
   return SvROK(msg) ? msg : NULL;
 }
 
-void owl_messagelist_append_element(owl_messagelist *ml, void *element)
+void owl_messagelist_append_element(owl_messagelist *ml, owl_message *msg)
 {
   OWL_PERL_CALL_METHOD(ml, "add_message",
-                       XPUSHs((SV*)element); ,
+                       XPUSHs((SV*)msg); ,
                        // Error
                        "Error in add_message: %s",
                        1, // Fatal
                        OWL_PERL_VOID_CALL
                        );
   // When we insert the message, perl code takes ownership of it, so
-  // we relinquish our reference count on the HV that is the message
-  SvREFCNT_dec(SvRV((SV*)element));
+  // we relinquish our reference
+  SvREFCNT_dec((SV*)msg);
 }
 
 void owl_messagelist_expunge(owl_messagelist *ml)
