@@ -138,6 +138,8 @@ use lib(get_config_dir() . "/lib");
 # switch, if present.
 our $configfile;
 
+our @__startup_errors = ();
+
 if(!$configfile && -f $ENV{HOME} . "/.barnowlconf") {
     $configfile = $ENV{HOME} . "/.barnowlconf";
 }
@@ -291,6 +293,17 @@ sub _new_variable {
 package BarnOwl::MessageList;
 
 sub new {
+    my $ml;
+    eval q{
+        use BarnOwl::MessageList::SQL;
+        $ml = BarnOwl::MessageList::SQL->new;
+    };
+
+    if($@) {
+        push @BarnOwl::__startup_errors, "Unable to load SQL message list\n$@";
+    } else {
+        return $ml;
+    }
     my $class = shift;
     my $self = {messages => {}};
     return bless $self, $class;
@@ -792,6 +805,11 @@ sub _load_owlconf {
 # with compatibility by calling the old, fixed-name hooks.
 
 sub _startup {
+    for my $e (@BarnOwl::__startup_errors) {
+        BarnOwl::admin_message('Startup', $e);
+    }
+    @BarnOwl::__startup_errors = ();
+    
     _load_owlconf();
 
     if(eval {require BarnOwl::ModuleLoader}) {
