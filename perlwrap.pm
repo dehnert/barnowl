@@ -118,6 +118,10 @@ Reports an error and log it in `show errors'. Note that in any
 callback or hook called in perl code from BarnOwl, a C<die> will be
 caught and passed to C<error>.
 
+=head2 debug STRING
+
+Logs a debugging message to BarnOwl's debug log
+
 =head2 getnumcolors
 
 Returns the number of colors this BarnOwl is capable of displaying
@@ -292,6 +296,12 @@ sub _new_variable {
 
 package BarnOwl::MessageList;
 
+my $__next_id = 0;
+
+sub next_id {
+    return $__next_id++;
+}
+
 sub new {
     my $ml;
     eval q{
@@ -355,20 +365,21 @@ sub expunge {
 package BarnOwl::Message;
 use POSIX qw(ctime);
 
-my $__next_id = 0;
-
 sub new {
     my $class = shift;
     my $time = time;
     my $timestr = ctime($time);
     $timestr =~ s/\n$//;
     my %args = (
-        id        => $__next_id++,
         deleted   => 0,
         time      => $timestr,
         _time     => $time,
         direction => 'none',
         @_);
+    unless(exists($args{id})) {
+        my $msglist = BarnOwl::message_list();
+        $args{id} = $msglist->next_id;
+    }
     if(exists $args{loginout} && !exists $args{login}) {
         $args{login} = $args{loginout};
         delete $args{loginout};

@@ -255,6 +255,14 @@ error(text)
 	}
 
 void
+debug(text)
+	char *text
+	CODE:
+	{
+		owl_function_debugmsg("%s", text);
+	}
+
+void
 _create_style(name, function, description)
      char *name
      char *function
@@ -341,3 +349,10 @@ new_variable_bool_internal(name, ival, summ, desc)
 				      summ,
 				      desc,
 				      ival);
+
+SV*
+message_list()
+	CODE:
+		RETVAL = newSVsv(owl_global_get_msglist(&g));
+	OUTPUT:
+		RETVAL

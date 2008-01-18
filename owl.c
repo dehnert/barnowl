@@ -335,18 +335,21 @@ int main(int argc, char **argv, char **env)
   tw=owl_global_get_typwin(&g);
 
   /* welcome message */
-  owl_function_debugmsg("startup: creating splash message");
-  strcpy(startupmsg, "-----------------------------------------------------------------------\n");
-  sprintf(buff,      "Welcome to barnowl version %s.  Press 'h' for on-line help.            \n", OWL_VERSION_STRING);
-  strcat(startupmsg, buff);
-  strcat(startupmsg, "                                                                       \n");
-  strcat(startupmsg, "This is a development build of barnowl. If you are using this          \n");
-  strcat(startupmsg, "build regularly, please add yourself to barnowl-users@mit.edu          \n");
-  strcat(startupmsg, "                                                                 ^ ^   \n");
-  strcat(startupmsg, "                                                                 OvO   \n");
-  strcat(startupmsg, "Please report any bugs to dirty-owl-hackers@mit.edu             (   )  \n");
-  strcat(startupmsg, "-----------------------------------------------------------------m-m---\n");
-  owl_function_adminmsg("", startupmsg);
+  if(owl_messagelist_get_size(owl_global_get_msglist(&g)) == 0) {
+    owl_function_debugmsg("startup: creating splash message");
+    strcpy(startupmsg, "-----------------------------------------------------------------------\n");
+    sprintf(buff,      "Welcome to barnowl version %s.  Press 'h' for on-line help.            \n", OWL_VERSION_STRING);
+    strcat(startupmsg, buff);
+    strcat(startupmsg, "                                                                       \n");
+    strcat(startupmsg, "This is a development build of barnowl. If you are using this          \n");
+    strcat(startupmsg, "build regularly, please add yourself to barnowl-users@mit.edu          \n");
+    strcat(startupmsg, "                                                                 ^ ^   \n");
+    strcat(startupmsg, "                                                                 OvO   \n");
+    strcat(startupmsg, "Please report any bugs to dirty-owl-hackers@mit.edu             (   )  \n");
+    strcat(startupmsg, "-----------------------------------------------------------------m-m---\n");
+    owl_function_adminmsg("", startupmsg);
+  }
+
   sepbar(NULL);
 
   /* process the startup file */
