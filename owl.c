@@ -256,9 +256,6 @@ int main(int argc, char **argv, char **env)
   s=owl_malloc(sizeof(owl_style));
   owl_style_create_internal(s, "basic", &owl_stylefunc_basic, "Basic message formatting.");
   owl_global_add_style(&g, s);
-  s=owl_malloc(sizeof(owl_style));
-  owl_style_create_internal(s, "oneline", &owl_stylefunc_oneline, "Formats for one-line-per-message");
-  owl_global_add_style(&g, s);
 
   /* setup the default filters */
   /* the personal filter will need to change again when AIM chat's are
@@ -544,7 +541,7 @@ int main(int argc, char **argv, char **env)
     if (j==ERR) {
       usleep(10000);
     } else {
-      owl_global_update_lastinputtime(&g);
+      owl_global_set_lastinputtime(&g, now);
       /* find and activate the current keymap.
        * TODO: this should really get fixed by activating
        * keymaps as we switch between windows... 
