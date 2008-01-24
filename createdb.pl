@@ -77,9 +77,9 @@ my $attrs = DBIx::DBSchema::Table->new({
 
 my $schema = DBIx::DBSchema->new($messages, $attrs);
 
-my $dsn = shift;
-my $user = shift;
-my $pass = shift;
+my $dsn = shift || "DBI:SQLite:dbname=$ENV{HOME}/.owl/messagedb";
+my $user = shift || undef;
+my $pass = shift || undef;
 
 my $dbh = DBI->connect($dsn, $user, $pass, {RaiseError => 1, AutoCommit => 0});
 my @sql = $schema->sql($dbh);
