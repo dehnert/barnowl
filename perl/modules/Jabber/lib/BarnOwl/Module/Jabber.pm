@@ -988,11 +988,11 @@ sub process_presence_available {
 
     if ($type eq '' || $type eq 'available') {
         $props{body} = "$from is now online. ";
-        $props{loginout} = 'login';
+        $props{login} = 'login';
     }
     else {
         $props{body} = "$from is now offline. ";
-        $props{loginout} = 'logout';
+        $props{login} = 'logout';
     }
     $props{replysendercmd} = $props{replycmd} = "jwrite $from -i $sid";
     if(BarnOwl::getvar('debug') eq 'on') {

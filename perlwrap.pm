@@ -374,13 +374,14 @@ sub new {
         deleted   => 0,
         time      => $timestr,
         _time     => $time,
+        login     => 'none',
         direction => 'none',
         @_);
     unless(exists($args{id})) {
         my $msglist = BarnOwl::message_list();
         $args{id} = $msglist->next_id;
     }
-    if(exists $args{loginout} && !exists $args{login}) {
+    if(exists $args{loginout}) {
         $args{login} = $args{loginout};
         delete $args{loginout};
     }
@@ -418,7 +419,7 @@ sub id          { return shift->{"id"}; }
 sub body        { return shift->{"body"}; }
 sub sender      { return shift->{"sender"}; }
 sub recipient   { return shift->{"recipient"}; }
-sub login       { return shift->{"login"} || ""; }
+sub login       { return shift->{"login"}; }
 sub is_private  { return shift->{"private"}; }
 
 sub is_login    { return shift->login eq "login"; }

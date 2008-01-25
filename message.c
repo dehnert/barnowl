@@ -203,29 +203,29 @@ char *owl_message_get_opcode(owl_message *m)
 
 void owl_message_set_islogin(owl_message *m)
 {
-  owl_message_set_attribute(m, "loginout", "login");
+  owl_message_set_attribute(m, "login", "login");
 }
 
 
 void owl_message_set_islogout(owl_message *m)
 {
-  owl_message_set_attribute(m, "loginout", "logout");
+  owl_message_set_attribute(m, "login", "logout");
 }
 
 int owl_message_is_loginout(owl_message *m)
 {
   char *res;
 
-  res=owl_message_get_attribute_value(m, "loginout");
-  if (!res) return(0);
-  return(1);
+  res=owl_message_get_attribute_value(m, "login");
+  if(!res) return(0);
+  return strcmp(res, "none");
 }
 
 int owl_message_is_login(owl_message *m)
 {
   char *res;
 
-  res=owl_message_get_attribute_value(m, "loginout");
+  res=owl_message_get_attribute_value(m, "login");
   if (!res) return(0);
   if (!strcmp(res, "login")) return(1);
   return(0);
@@ -236,7 +236,7 @@ int owl_message_is_logout(owl_message *m)
 {
   char *res;
 
-  res=owl_message_get_attribute_value(m, "loginout");
+  res=owl_message_get_attribute_value(m, "login");
   if (!res) return(0);
   if (!strcmp(res, "logout")) return(1);
   return(0);
@@ -420,13 +420,13 @@ int owl_message_is_direction_none(owl_message *m)
 void owl_message_mark_delete(owl_message *m)
 {
   if (m == NULL) return;
-  owl_message_set_attribute(m, "deleted", "1");
+  OWL_PERL_CALL_METHOD(m, "delete", /* no args */, "Error in delete: %s", 0, (void)POPs);
 }
 
 void owl_message_unmark_delete(owl_message *m)
 {
   if (m == NULL) return;
-  owl_message_set_attribute(m, "deleted", "0");
+  OWL_PERL_CALL_METHOD(m, "undelete", /* no args */, "Error in delete: %s", 0, (void)POPs);
 }
 
 char *owl_message_get_zwriteline(owl_message *m)

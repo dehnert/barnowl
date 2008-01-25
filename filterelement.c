@@ -33,14 +33,6 @@ static char * owl_filterelement_get_field(owl_message *m, char * field)
     } else {
       match="";
     }
-  } else if (!strcasecmp(field, "login")) {
-    if (owl_message_is_login(m)) {
-      match="login";
-    } else if (owl_message_is_logout(m)) {
-      match="logout";
-    } else {
-      match="none";
-    }
   } else {
     match = owl_message_get_attribute_value(m,field);
     if(match == NULL) match = "";
