@@ -319,6 +319,10 @@ sub new {
     return bless $self, $class;
 }
 
+sub set_attribute {
+    
+}
+
 sub get_size {
     my $self = shift;
     return scalar keys %{$self->{messages}};
@@ -462,13 +466,15 @@ sub pretty_sender    { return shift->sender; }
 sub pretty_recipient { return shift->recipient; }
 
 sub delete {
-    my ($m) = @_;
-    &BarnOwl::command("delete --id ".$m->id);
+    my $self = shift;
+    $self->{deleted} = 1;
+    BarnOwl::message_list()->set_attribute($self => deleted => 1);
 }
 
 sub undelete {
-    my ($m) = @_;
-    &BarnOwl::command("undelete --id ".$m->id);
+    my $self = shift;
+    $self->{deleted} = 0;
+    BarnOwl::message_list()->set_attribute($self => deleted => 0);
 }
 
 # Serializes the message into something similar to the zwgc->vt format
