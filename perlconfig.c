@@ -159,7 +159,7 @@ char *owl_perlconfig_initperl(char * file)
   int ret;
   PerlInterpreter *p;
   char *err;
-  char *args[4] = {"", "-e", "0;", NULL};
+  char *args[] = {"", "-e", "0;", NULL};
 
   /* create and initialize interpreter */
   p=perl_alloc();
@@ -169,7 +169,7 @@ char *owl_perlconfig_initperl(char * file)
   owl_global_set_no_have_config(&g);
 
 
-  ret=perl_parse(p, owl_perl_xs_init, 2, args, NULL);
+  ret=perl_parse(p, owl_perl_xs_init, sizeof(args)/sizeof(*args) - 1, args, NULL);
   if (ret || SvTRUE(ERRSV)) {
     STRLEN n_a;
     err=owl_strdup(SvPV(ERRSV, n_a));
@@ -221,6 +221,13 @@ char *owl_perlconfig_initperl(char * file)
   }
 
   return(NULL);
+}
+
+void owl_perlconfig_shutdown() {
+  PerlInterpreter *p;
+  p = owl_global_get_perlinterp(&g);
+  perl_destruct(p);
+  perl_free(p);
 }
 
 /* returns whether or not a function exists */
