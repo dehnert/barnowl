@@ -208,6 +208,13 @@ static owl_variable variables_to_init[] = {
 	       "messages.  It will not be run again until the first\n"
 	       "instance exits"),
 
+  OWLVAR_STRING( "zsender" /* %OwlVarStub */, "",
+             "zephyr sender name",
+         "Allows you to customize the outgoing username in\n"
+         "zephyrs.  If this is unset, it will use your Kerberos\n"
+         "principal. Note that customizing the sender name will\n"
+         "cause your zephyrs to be sent unauthenticated."),
+
   OWLVAR_STRING( "zsig" /* %OwlVarStub */, "",
 	         "zephyr signature", 
 		 "If 'zsigproc' is not set, this string will be used\n"
@@ -1082,7 +1089,7 @@ int owl_variable_regtest(void) {
 
   owl_variable_dict_free(&vd);
 
-  // if (numfailed) printf("*** WARNING: failures encountered with owl_variable\n");
+  /* if (numfailed) printf("*** WARNING: failures encountered with owl_variable\n"); */
   printf("# END testing owl_variable (%d failures)\n", numfailed);
   return(numfailed);
 }
