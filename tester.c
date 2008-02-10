@@ -8,11 +8,6 @@ owl_global g;
 
 void screeninit()
 {
-  char buff[1024];
-  
-  sprintf(buff, "TERMINFO=%s", TERMINFO);
-  putenv(buff);
-
   initscr();
   start_color();
   /* cbreak(); */
@@ -152,6 +147,9 @@ int main(int argc, char **argv, char **env)
 {
   owl_errqueue_init(owl_global_get_errqueue(&g));
   owl_obarray_init(&(g.obarray));
+  owl_perlconfig_initperl(NULL);
+  /* Now that we have perl, we can initialize the msssage list*/
+  g.msglist = owl_messagelist_new();
 
   int numfailures=0;
   if (argc==1 || (argc==2 && 0==strcmp(argv[1],"reg"))) {
@@ -162,6 +160,7 @@ int main(int argc, char **argv, char **env)
     numfailures += owl_variable_regtest();
     numfailures += owl_filter_regtest();
     numfailures += owl_obarray_regtest();
+    numfailures += owl_list_regtest();
     if (numfailures) {
       fprintf(stderr, "# *** WARNING: %d failures total\n", numfailures);
     }

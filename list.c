@@ -100,3 +100,53 @@ void owl_list_free_simple(owl_list *l)
 {
   if (l->list) owl_free(l->list);
 }
+
+/************* REGRESSION TESTS **************/
+#ifdef OWL_INCLUDE_REG_TESTS
+
+#include "test.h"
+
+int owl_list_regtest(void) {
+  int numfailed=0;
+  owl_list l;
+  int i;
+
+  printf("# BEGIN testing owl_list\n");
+
+  FAIL_UNLESS("create", 0 == owl_list_create(&l));
+  for(i=0;i<10;i++) {
+    FAIL_UNLESS("insert", 0 == owl_list_append_element(&l, (void*)i));
+  }
+
+  FAIL_UNLESS("size", 10 == owl_list_get_size(&l));
+
+  for(i=0;i<10;i++) {
+    FAIL_UNLESS("get", i == (int)owl_list_get_element(&l, i));
+  }
+
+  for(i=0;i<10;i++) {
+    FAIL_UNLESS("append tail", 0 == owl_list_append_element(&l, (void*)(10+i)));
+  }
+
+  FAIL_UNLESS("size", 20 == owl_list_get_size(&l));
+
+  for(i=10;i<20;i++) {
+    FAIL_UNLESS("get", i == (int)owl_list_get_element(&l, i));
+  }
+
+  for(i=9;i>=0;i--) {
+    FAIL_UNLESS("prepend", 0 == owl_list_prepend_element(&l, (void*)(-i)));
+  }
+
+  FAIL_UNLESS("size", 30 == owl_list_get_size(&l));
+
+  for(i=0;i<10;i++) {
+    FAIL_UNLESS("get", -i == (int)owl_list_get_element(&l, i));
+  }
+  
+  printf("# END testing owl_list\n");
+
+  return numfailed;
+}
+
+#endif /* OWL_INCLUDE_REG_TESTS */
