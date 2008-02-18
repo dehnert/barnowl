@@ -140,7 +140,8 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
     }
     wattroff(recwin, A_BOLD);
   }
-  // owl_view_iterator_prev(iter);
+
+  owl_view_iterator_prev(iter);
   owl_view_iterator_clone(&(mw->lastdisplayed), iter);
 
   wnoutrefresh(recwin);

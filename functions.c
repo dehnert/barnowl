@@ -1673,8 +1673,8 @@ void owl_function_page_curmsg(int step)
 
   if (offset==0) {
     /* Bail if the curmsg isn't the last one displayed */
-    if (owl_message_get_id(m) !=
-        owl_message_get_id(owl_mainwin_get_last_msg(owl_global_get_mainwin(&g)))) {
+    owl_message *cur = owl_view_iterator_get_message(owl_mainwin_get_last_msg(owl_global_get_mainwin(&g)));
+    if (owl_message_get_id(m) != owl_message_get_id(cur)) {
       owl_function_makemsg("The entire message is already displayed");
       return;
     }
