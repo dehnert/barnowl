@@ -5,15 +5,16 @@ static const char fileIdent[] = "$Id$";
 void owl_mainwin_init(owl_mainwin *mw)
 {
   mw->curtruncated=0;
-  mw->lastdisplayed=-1;
+  owl_view_iterator_invalidate(&(mw->lastdisplayed));
 }
 
 void owl_mainwin_redisplay(owl_mainwin *mw)
 {
   owl_message *m;
-  int i, p, q, lines, isfull, viewsize;
+  int p, q, lines, isfull;
   int x, y, savey, recwinlines, start;
-  int topmsg, curmsg, fgcolor, bgcolor;
+  int fgcolor, bgcolor;
+  owl_view_iterator *topmsg, *curmsg, it, *iter = &it;
   WINDOW *recwin;
   owl_view *v;
   owl_list *filtlist;
@@ -34,16 +35,15 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
 
   recwinlines=owl_global_get_recwin_lines(&g);
   topmsg=owl_global_get_topmsg(&g);
-  viewsize=owl_view_get_size(v);
 
   /* if there are no messages or if topmsg is past the end of the messages,
    * just draw a blank screen */
-  if (viewsize==0 || topmsg>=viewsize) {
-    if (viewsize==0) {
-      owl_global_set_topmsg(&g, 0);
+  if (owl_view_is_empty(v) || !owl_view_iterator_is_valid(topmsg)) {
+    if (owl_view_is_empty(v)) {
+      owl_global_set_topmsg(&g, NULL);
     }
     mw->curtruncated=0;
-    mw->lastdisplayed=-1;
+    owl_view_iterator_invalidate(&(mw->lastdisplayed));
     wnoutrefresh(recwin);
     owl_global_set_needrefresh(&g);
     return;
@@ -54,16 +54,20 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
   mw->curtruncated=0;
   mw->lasttruncated=0;
 
-  for (i=topmsg; i<viewsize; i++) {
+  for(owl_view_iterator_clone(iter, topmsg);
+      !owl_view_iterator_is_at_end(iter);
+      owl_view_iterator_next(iter)) {
     if (isfull) break;
-    m=owl_view_get_element(v, i);
+    m = owl_view_iterator_get_message(iter);
+    int iscurrent = owl_message_get_id(m) ==
+      owl_message_get_id(owl_view_iterator_get_message(curmsg));
 
     /* hold on to y in case this is the current message or deleted */
     getyx(recwin, y, x);
     savey=y;
 
     /* if it's the current message, account for a vert_offset */
-    if (i==owl_global_get_curmsg(&g)) {
+    if (iscurrent) {
       start=owl_global_get_curmsg_vert_offset(&g);
       lines=owl_message_get_numlines(m)-start;
     } else {
@@ -88,7 +92,7 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
     }
 
     /* if we'll fill the screen print a partial message */
-    if ((y+lines > recwinlines) && (i==owl_global_get_curmsg(&g))) mw->curtruncated=1;
+    if ((y+lines > recwinlines) && iscurrent) mw->curtruncated=1;
     if (y+lines > recwinlines) mw->lasttruncated=1;
     if (y+lines > recwinlines-1) {
       isfull=1;
@@ -113,7 +117,7 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
     getyx(recwin, y, x);
     wattrset(recwin, A_NORMAL);
     if (owl_global_get_rightshift(&g)==0) {   /* this lame and should be fixed */
-      if (owl_message_get_id(m)==owl_message_get_id(owl_view_get_element(v, curmsg))) {
+      if (iscurrent) {
 	wmove(recwin, savey, 0);
 	wattron(recwin, A_BOLD);	
 	if (owl_global_get_curmsg_vert_offset(&g)>0) {
@@ -136,7 +140,8 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
     }
     wattroff(recwin, A_BOLD);
   }
-  mw->lastdisplayed=i-1;
+  // owl_view_iterator_prev(iter);
+  owl_view_iterator_clone(&(mw->lastdisplayed), iter);
 
   wnoutrefresh(recwin);
   owl_global_set_needrefresh(&g);
@@ -155,8 +160,7 @@ int owl_mainwin_is_last_msg_truncated(owl_mainwin *mw)
   return(0);
 }
 
-int owl_mainwin_get_last_msg(owl_mainwin *mw)
+owl_view_iterator *owl_mainwin_get_last_msg(owl_mainwin *mw)
 {
-  /* return the number of the last message displayed. -1 if none */
-  return(mw->lastdisplayed);
+  return &(mw->lastdisplayed);
 }

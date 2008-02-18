@@ -212,6 +212,9 @@ static const char owl_h_fileIdent[] = "$Id$";
 #define OWL_ENABLE_ZCRYPT 1
 #endif
 
+#define OWL_ITERATE_FORWARD     0
+#define OWL_ITERATE_REVERSE     1
+
 #define OWL_META(key) ((key)|0200)
 /* OWL_CTRL is definied in kepress.c */
 
@@ -265,6 +268,7 @@ typedef struct _owl_list {
   int size;
   int avail;
   void **list;
+  void **alloc;
 } owl_list;
 
 typedef struct _owl_dict_el {
@@ -355,12 +359,6 @@ typedef struct _owl_style {
   void (*formatfunc) (owl_fmtext *fm, owl_message *m);
 } owl_style;
 
-typedef struct _owl_mainwin {
-  int curtruncated;
-  int lasttruncated;
-  int lastdisplayed;
-} owl_mainwin;
-
 typedef struct _owl_viewwin {
   owl_fmtext fmtext;
   int textlines;
@@ -425,6 +423,17 @@ typedef struct _owl_view {
   owl_list messages;
   owl_style *style;
 } owl_view;
+
+typedef struct _owl_view_iterator {
+  owl_view *view;
+  int index;
+} owl_view_iterator;
+
+typedef struct _owl_mainwin {
+  int curtruncated;
+  int lasttruncated;
+  owl_view_iterator lastdisplayed;
+} owl_mainwin;
 
 typedef struct _owl_history {
   owl_list hist;
@@ -537,7 +546,7 @@ typedef struct _owl_global {
   owl_context ctx;
   owl_errqueue errqueue;
   int lines, cols;
-  int curmsg, topmsg;
+  owl_view_iterator curmsg, topmsg;
   int curmsg_vert_offset;
   owl_view current_view;
   owl_messagelist *msglist;

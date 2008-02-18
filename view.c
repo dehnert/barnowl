@@ -71,37 +71,32 @@ char *owl_view_get_style_name(owl_view *v) {
   return(owl_style_get_name(v->style));
 }
 
-owl_message *owl_view_get_element(owl_view *v, int index)
+owl_message *_owl_view_get_element(owl_view *v, int index)
 {
-  if(index < 0 || index >= owl_view_get_size(v))
+  if(index < 0 || index >= _owl_view_get_size(v))
     return NULL;
   int id = (int)owl_list_get_element(&(v->messages), index);
   return owl_messagelist_get_by_id(owl_global_get_msglist(&g), id);
 }
 
-void owl_view_delete_element(owl_view *v, int index)
+int owl_view_is_empty(owl_view *v)
 {
-  owl_message_mark_delete(owl_view_get_element(v, index));
+  return owl_list_get_size(&(v->messages)) == 0;
 }
 
-void owl_view_undelete_element(owl_view *v, int index)
-{
-  owl_message_unmark_delete(owl_view_get_element(v, index));
-}
-
-int owl_view_get_size(owl_view *v)
+int _owl_view_get_size(owl_view *v)
 {
   return(owl_list_get_size(&(v->messages)));
 }
 
 /* Returns the position in the view with a message closest 
  * to the passed msgid. */
-int owl_view_get_nearest_to_msgid(owl_view *v, int targetid)
+int _owl_view_get_nearest_to_msgid(owl_view *v, int targetid)
 {
   int first, last, mid = 0, max, bestdist, curid = 0;
 
   first = 0;
-  last = max = owl_view_get_size(v) - 1;
+  last = max = _owl_view_get_size(v) - 1;
   while (first <= last) {
     mid = (first + last) / 2;
     curid = (int)owl_list_get_element(&(v->messages), mid);
@@ -123,15 +118,6 @@ int owl_view_get_nearest_to_msgid(owl_view *v, int targetid)
     mid = (bestdist < abs(targetid-curid)) ? mid : mid-1;
   }
   return mid;
-}
-
-int owl_view_get_nearest_to_saved(owl_view *v)
-{
-  int cachedid;
-
-  cachedid=owl_filter_get_cachedmsgid(v->filter);
-  if (cachedid<0) return(0);
-  return (owl_view_get_nearest_to_msgid(v, cachedid));
 }
 
 /* saves the current message position in the filter so it can 
@@ -166,4 +152,83 @@ void owl_view_free(owl_view *v)
 {
   owl_list_free_simple(&(v->messages));
   if (v->name) owl_free(v->name);
+}
+
+/* View Iterators */
+
+void owl_view_iterator_invalidate(owl_view_iterator *it)
+{
+  it->index = -1;
+  it->view = NULL;
+}
+
+void owl_view_iterator_init_id(owl_view_iterator *it, owl_view *v, int message_id)
+{
+  it->view = v;
+  it->index = _owl_view_get_nearest_to_msgid(v, message_id);
+}
+
+void owl_view_iterator_init_start(owl_view_iterator *it, owl_view *v)
+{
+  it->view = v;
+  it->index = 0;
+}
+
+void owl_view_iterator_init_end(owl_view_iterator *it, owl_view *v)
+{
+  it->view = v;
+  it->index = _owl_view_get_size(v) - 1;
+}
+
+void owl_view_iterator_clone(owl_view_iterator *dst, owl_view_iterator *src)
+{
+  dst->view  = src->view;
+  dst->index = src->index;
+}
+
+int owl_view_iterator_has_prev(owl_view_iterator *it)
+{
+  return it->index > 0;
+}
+
+int owl_view_iterator_has_next(owl_view_iterator *it)
+{
+  return it->index < _owl_view_get_size(it->view) - 1;
+}
+
+int owl_view_iterator_is_at_end(owl_view_iterator *it)
+{
+  return it->index >= _owl_view_get_size(it->view);
+}
+
+int owl_view_iterator_is_at_start(owl_view_iterator *it)
+{
+  return it->index < 0;
+}
+
+int owl_view_iterator_is_valid(owl_view_iterator *it)
+{
+  return it->view != NULL && it->index >= 0 && it->index < _owl_view_get_size(it->view);
+}
+
+void owl_view_iterator_prev(owl_view_iterator *it)
+{
+  if(!owl_view_iterator_is_at_start(it))
+    it->index--;
+}
+
+void owl_view_iterator_next(owl_view_iterator *it)
+{
+  if(!owl_view_iterator_is_at_end(it))
+    it->index++;
+}
+
+owl_message * owl_view_iterator_get_message(owl_view_iterator *it)
+{
+  return _owl_view_get_element(it->view, it->index);
+}
+
+int owl_view_iterator_cmp(owl_view_iterator *it1, owl_view_iterator *it2)
+{
+  return it2->index - it1->index;
 }

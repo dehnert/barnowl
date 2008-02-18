@@ -32,8 +32,7 @@ void owl_global_init(owl_global *g) {
 
   owl_context_init(&g->ctx);
   owl_context_set_startup(&g->ctx);
-  g->curmsg=0;
-  g->topmsg=0;
+
   g->needrefresh=1;
   g->startupargs=NULL;
 
@@ -176,12 +175,12 @@ int owl_global_get_recwin_lines(owl_global *g) {
 
 /* curmsg */
 
-int owl_global_get_curmsg(owl_global *g) {
-  return(g->curmsg);
+owl_view_iterator* owl_global_get_curmsg(owl_global *g) {
+  return &(g->curmsg);
 }
 
-void owl_global_set_curmsg(owl_global *g, int i) {
-  g->curmsg=i;
+void owl_global_set_curmsg(owl_global *g, owl_view_iterator *it) {
+  owl_view_iterator_clone(&(g->curmsg), it);
   /* we will reset the vertical offset from here */
   /* we might want to move this out to the functions later */
   owl_global_set_curmsg_vert_offset(g, 0);
@@ -189,12 +188,16 @@ void owl_global_set_curmsg(owl_global *g, int i) {
 
 /* topmsg */
 
-int owl_global_get_topmsg(owl_global *g) {
-  return(g->topmsg);
+owl_view_iterator* owl_global_get_topmsg(owl_global *g) {
+  return &(g->topmsg);
 }
 
-void owl_global_set_topmsg(owl_global *g, int i) {
-  g->topmsg=i;
+void owl_global_set_topmsg(owl_global *g, owl_view_iterator *it) {
+  if(!it) {
+    owl_view_iterator_invalidate(&(g->topmsg));
+  } else {
+    owl_view_iterator_clone(&(g->topmsg), it);
+  }
 }
 
 /* windows */
@@ -630,8 +633,8 @@ owl_view *owl_global_get_current_view(owl_global *g) {
 
 owl_message *owl_global_get_current_message(owl_global *g) {
   owl_view *cur = owl_global_get_current_view(g);
-  if(owl_view_get_size(cur) < 1) return NULL;
-  return owl_view_get_element(cur, owl_global_get_curmsg(g));
+  if(owl_view_is_empty(cur)) return NULL;
+  return owl_view_iterator_get_message(owl_global_get_curmsg(g));
 }
 
 /* has colors */
@@ -676,7 +679,7 @@ int owl_global_should_followlast(owl_global *g) {
   
   v=owl_global_get_current_view(g);
   
-  if (owl_global_get_curmsg(g)==owl_view_get_size(v)-1) return(1);
+  if (owl_view_iterator_is_at_end(owl_global_get_curmsg(g))) return(1);
   return(0);
 }
 
