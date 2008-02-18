@@ -566,13 +566,8 @@ void owl_function_nextmsg_full(char *filter, int skip_deleted, int last_if_none)
   owl_view_iterator_clone(&it, owl_global_get_curmsg(&g));
   found=0;
 
-  /* just check to make sure we're in bounds... */
-  /* if (curmsg>viewsize-1) curmsg=viewsize-1;
-     if (curmsg<0) curmsg=0; */
-
-  if(owl_view_iterator_has_next(&it))
-    owl_view_iterator_next(&it);
-  for (;owl_view_iterator_has_next(&it);
+  for (owl_view_iterator_next(&it);
+       !owl_view_iterator_is_at_end(&it);
        owl_view_iterator_next(&it)) {
     m = owl_view_iterator_get_message(&it);
     if (skip_deleted && owl_message_is_delete(m)) continue;
@@ -581,8 +576,8 @@ void owl_function_nextmsg_full(char *filter, int skip_deleted, int last_if_none)
     break;
   }
 
-  /* if (i>owl_view_get_size(v)-1) i=owl_view_get_size(v)-1;
-     if (i<0) i=0; */
+  if(owl_view_iterator_is_at_end(&it))
+    owl_view_iterator_prev(&it);
 
   if (!found) {
     owl_function_makemsg("already at last%s message%s%s",
@@ -620,12 +615,8 @@ void owl_function_prevmsg_full(char *filter, int skip_deleted, int first_if_none
   owl_view_iterator_clone(&it, owl_global_get_curmsg(&g));
   found=0;
 
-  /* just check to make sure we're in bounds... */
-  /* if (curmsg<0) curmsg=0; */
-
-  if(owl_view_iterator_has_prev(&it))
-    owl_view_iterator_prev(&it);
-  for (;owl_view_iterator_has_prev(&it);
+  for (owl_view_iterator_prev(&it);
+       !owl_view_iterator_is_at_start(&it);
        owl_view_iterator_prev(&it)) {
     m = owl_view_iterator_get_message(&it);
     if (skip_deleted && owl_message_is_delete(m)) continue;
@@ -633,6 +624,9 @@ void owl_function_prevmsg_full(char *filter, int skip_deleted, int first_if_none
     found = 1;
     break;
   }
+
+  if(owl_view_iterator_is_at_start(&it))
+    owl_view_iterator_next(&it);
 
   if (!found) {
     owl_function_makemsg("already at first%s message%s%s",
