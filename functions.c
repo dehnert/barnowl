@@ -1202,74 +1202,75 @@ void owl_function_calculate_topmsg_paged(int direction, owl_view *v, owl_view_it
 
 void owl_function_calculate_topmsg_normal(int direction, owl_view *v, owl_view_iterator *curmsg, owl_view_iterator *topmsg, int recwinlines)
 {
-  owl_function_error("topmsg_normal not supported yet");
-/*   int savey, i, foo, y; */
+  int savey, lines, y;
+  owl_view_iterator it;
 
-/*   if (curmsg<0) return(topmsg); */
+  if (!owl_view_iterator_is_valid(curmsg)) return;
     
-/*   /\* If we're off the top of the screen then center *\/ */
-/*   if (curmsg<topmsg) { */
-/*     topmsg=owl_function_calculate_topmsg_center(direction, v, curmsg, 0, recwinlines); */
-/*   } */
+  /* If we're off the top of the screen then center */
+  if (owl_view_iterator_cmp(curmsg, topmsg) < 0) {
+    owl_view_iterator_init_start(topmsg, v);
+    owl_function_calculate_topmsg_center(direction, v, curmsg, topmsg, recwinlines);
+  }
 
-/*   /\* If curmsg is so far past topmsg that there are more messages than */
-/*      lines, skip the line counting that follows because we're */
-/*      certainly off screen.  *\/ */
-/*   savey=curmsg-topmsg; */
-/*   if (savey <= recwinlines) { */
-/*     /\* Find number of lines from top to bottom of curmsg (store in savey) *\/ */
-/*     savey = 0; */
-/*     for (i=topmsg; i<=curmsg; i++) { */
-/*       savey+=owl_message_get_numlines(owl_view_get_element(v, i)); */
-/*     } */
-/*   } */
+  /* Find number of lines from top to bottom of curmsg (store in savey) */
+  savey = 0;
+  for (owl_view_iterator_clone(&it, topmsg);
+       owl_view_iterator_cmp(&it, curmsg) <= 0
+         /* If we ever find we're off-screen, we can stop */
+         && savey <= recwinlines; 
+       owl_view_iterator_next(&it)) {
+    savey += owl_message_get_numlines(owl_view_iterator_get_message(&it));
+  }
 
-/*   /\* If we're off the bottom of the screen, set the topmsg to curmsg */
-/*    * and scroll upwards *\/ */
-/*   if (savey > recwinlines) { */
-/*     topmsg=curmsg; */
-/*     savey=owl_message_get_numlines(owl_view_get_element(v, curmsg)); */
-/*     direction=OWL_DIRECTION_UPWARDS; */
-/*   } */
-  
-/*   /\* If our bottom line is less than 1/4 down the screen then scroll up *\/ */
-/*   if (direction == OWL_DIRECTION_UPWARDS || direction == OWL_DIRECTION_NONE) { */
-/*     if (savey < (recwinlines / 4)) { */
-/*       y=0; */
-/*       for (i=curmsg; i>=0; i--) { */
-/* 	foo=owl_message_get_numlines(owl_view_get_element(v, i)); */
-/* 	/\* will we run the curmsg off the screen? *\/ */
-/* 	if ((foo+y) >= recwinlines) { */
-/* 	  i++; */
-/* 	  if (i>curmsg) i=curmsg; */
-/* 	  break; */
-/* 	} */
-/* 	/\* have saved 1/2 the screen space? *\/ */
-/* 	y+=foo; */
-/* 	if (y > (recwinlines / 2)) break; */
-/*       } */
-/*       if (i<0) i=0; */
-/*       return(i); */
-/*     } */
-/*   } */
+  /* If we're off the bottom of the screen, set the topmsg to curmsg
+   * and scroll upwards */
+  if (savey > recwinlines) {
+    owl_view_iterator_clone(topmsg, curmsg);
+    savey=owl_message_get_numlines(owl_view_iterator_get_message(curmsg));
+    direction=OWL_DIRECTION_UPWARDS;
+  }
 
-/*   if (direction == OWL_DIRECTION_DOWNWARDS || direction == OWL_DIRECTION_NONE) { */
-/*     /\* If curmsg bottom line is more than 3/4 down the screen then scroll down *\/ */
-/*     if (savey > ((recwinlines * 3)/4)) { */
-/*       y=0; */
-/*       /\* count lines from the top until we can save 1/2 the screen size *\/ */
-/*       for (i=topmsg; i<curmsg; i++) { */
-/* 	y+=owl_message_get_numlines(owl_view_get_element(v, i)); */
-/* 	if (y > (recwinlines / 2)) break; */
-/*       } */
-/*       if (i==curmsg) { */
-/* 	i--; */
-/*       } */
-/*       return(i+1); */
-/*     } */
-/*   } */
+  /* If our bottom line is less than 1/4 down the screen then scroll up */
+  if (direction == OWL_DIRECTION_UPWARDS || direction == OWL_DIRECTION_NONE) {
+    if (savey < (recwinlines / 4)) {
+      y=0;
+      for (owl_view_iterator_clone(&it, curmsg);
+           owl_view_iterator_has_prev(&it);
+           owl_view_iterator_prev(&it)) {
+        lines = owl_message_get_numlines(owl_view_iterator_get_message(&it));
+        /* will we run the curmsg off the screen? */
+        if ( lines+y >= recwinlines ) {
+          owl_view_iterator_next(&it);
+          if(owl_view_iterator_cmp(&it, curmsg) > 0)
+            owl_view_iterator_clone(&it, curmsg);
+          break;
+        }
+        /* have saved 1/2 the screen space? */
+        y += lines;
+        if (y > (recwinlines / 2)) break;
+      }
+      owl_view_iterator_clone(topmsg, &it);
+    }
+  }
 
-/*   return(topmsg); */
+  if (direction == OWL_DIRECTION_DOWNWARDS || direction == OWL_DIRECTION_NONE) {
+    /* If curmsg bottom line is more than 3/4 down the screen then scroll down */
+    if (savey > ((recwinlines * 3)/4)) {
+      y=0;
+      /* count lines from the top until we can save 1/2 the screen size */
+      for (owl_view_iterator_clone(&it, topmsg);
+           owl_view_iterator_cmp(&it, curmsg) < 0;
+           owl_view_iterator_next(&it)) {
+        y+=owl_message_get_numlines(owl_view_iterator_get_message(&it));
+        if (y > (recwinlines / 2)) break;
+      }
+      if (owl_view_iterator_cmp(&it,curmsg)) {
+        owl_view_iterator_next(&it);
+      }
+      owl_view_iterator_clone(topmsg, &it);
+    }
+  }
 }
 
 void owl_function_resize()

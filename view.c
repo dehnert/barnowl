@@ -230,5 +230,5 @@ owl_message * owl_view_iterator_get_message(owl_view_iterator *it)
 
 int owl_view_iterator_cmp(owl_view_iterator *it1, owl_view_iterator *it2)
 {
-  return it2->index - it1->index;
+  return it1->index - it2->index;
 }
