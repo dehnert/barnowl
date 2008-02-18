@@ -1148,15 +1148,17 @@ void owl_function_calculate_topmsg_neartop(int direction, owl_view *v, owl_view_
 void owl_function_calculate_topmsg_center(int direction, owl_view *v, owl_view_iterator *curmsg, owl_view_iterator *topmsg, int recwinlines)
 {
   int lines;
-  owl_view_iterator *it = curmsg;
+  owl_view_iterator it;
+  owl_view_iterator_clone(&it, curmsg);
 
   lines = 0;
-  for (owl_view_iterator_prev(it);
-       !owl_view_iterator_is_at_start(it);
-       owl_view_iterator_prev(it)) {
-    lines += owl_message_get_numlines(owl_view_iterator_get_message(it));
+  for (owl_view_iterator_prev(&it);
+       !owl_view_iterator_is_at_start(&it);
+       owl_view_iterator_prev(&it)) {
+    lines += owl_message_get_numlines(owl_view_iterator_get_message(&it));
     if (lines > recwinlines/2) break;
   }
+  owl_view_iterator_clone(topmsg, &it);
 }
   
 void owl_function_calculate_topmsg_paged(int direction, owl_view *v, owl_view_iterator *curmsg, owl_view_iterator *topmsg, int recwinlines, int center_on_page)
