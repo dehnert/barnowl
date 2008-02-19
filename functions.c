@@ -1201,7 +1201,8 @@ void owl_function_calculate_topmsg_normal(int direction, owl_view *v, owl_view_i
   int savey, lines, y;
   owl_view_iterator it;
 
-  if (!owl_view_iterator_is_valid(curmsg)) return;
+  if (!owl_view_iterator_is_valid(curmsg)
+      || !owl_view_iterator_is_valid(topmsg)) return;
     
   /* If we're off the top of the screen then center */
   if (owl_view_iterator_cmp(curmsg, topmsg) < 0) {
