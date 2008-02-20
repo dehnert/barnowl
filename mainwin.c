@@ -38,10 +38,10 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
 
   /* if there are no messages or if topmsg is past the end of the messages,
    * just draw a blank screen */
-  if (owl_view_is_empty(v) || !owl_view_iterator_is_valid(topmsg)) {
-    if (owl_view_is_empty(v)) {
+  if (owl_view_is_empty(v)) {
+      /* if (owl_view_is_empty(v)) {
       owl_global_set_topmsg(&g, NULL);
-    }
+      } */
     mw->curtruncated=0;
     owl_view_iterator_invalidate(&(mw->lastdisplayed));
     wnoutrefresh(recwin);
