@@ -776,7 +776,7 @@ void owl_function_lastmsg_noredisplay()
   owl_view_iterator_init_end(&it, v);
   owl_global_set_curmsg(&g, &it);
   owl_function_calculate_topmsg(OWL_DIRECTION_DOWNWARDS);
-  owl_mainwin_redisplay(owl_global_get_mainwin(&g));
+  /* owl_mainwin_redisplay(owl_global_get_mainwin(&g)); */
   owl_global_set_direction_downwards(&g);
 }
 

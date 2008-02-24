@@ -358,3 +358,18 @@ message_list()
 		RETVAL = newSVsv(owl_global_get_msglist(&g));
 	OUTPUT:
 		RETVAL
+
+void
+add_dispatch(fd, cb)
+	int fd
+	SV * cb
+	CODE:
+        SvREFCNT_inc(cb);
+	owl_select_add_perl_dispatch(fd, cb);
+
+void
+remove_dispatch(fd)
+	int fd
+	CODE:
+	owl_select_remove_perl_dispatch(fd);
+

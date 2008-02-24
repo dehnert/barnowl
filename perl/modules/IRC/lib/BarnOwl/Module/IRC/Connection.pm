@@ -68,6 +68,12 @@ sub new {
     return $self;
 }
 
+sub getSocket
+{
+    my $self = shift;
+    return $self->conn->socket;
+}
+
 ################################################################################
 ############################### IRC callbacks ##################################
 ################################################################################
@@ -118,7 +124,7 @@ sub on_admin_msg {
     my ($self, $evt) = @_;
     BarnOwl::admin_message("IRC",
             BarnOwl::Style::boldify('IRC ' . $evt->type . ' message from '
-                . $evt->alias) . "\n"
+                . $self->alias) . "\n"
             . strip_irc_formatting(join '\n', cdr $evt->args));
 }
 
@@ -167,7 +173,7 @@ sub on_part {
 sub on_disconnect {
     my $self = shift;
     delete $BarnOwl::Module::IRC::ircnets{$self->alias};
-
+    BarnOwl::remove_dispatch($self->{FD});
     BarnOwl::admin_message('IRC',
                            "[" . $self->alias . "] Disconnected from server");
 }
