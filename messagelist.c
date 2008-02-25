@@ -88,7 +88,7 @@ void owl_messagelist_invalidate_formats(owl_messagelist *ml)
 {
   owl_message *m;
 
-  owl_messagelist_iterate_next(ml);
+  owl_messagelist_start_iterate(ml);
 
   while((m = owl_messagelist_iterate_next(ml)) != NULL) {
     owl_message_invalidate_format(m);
