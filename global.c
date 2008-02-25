@@ -946,6 +946,13 @@ owl_list *owl_global_get_dispatchlist(owl_global *g)
   return &(g->dispatchlist);
 }
 
+/*
+ * The fmtext_seq is used to manage the fmtext cache for
+ * messages. Whenever we initialize a cache, we save the global seq in
+ * the cache. Whenever we change styles, we increment the global
+ * seq. Caches are checked to ensure that their sequence number
+ * matches the global sequence whenever they are used.
+ */
 int owl_global_get_fmtext_seq(owl_global *g)
 {
     return g->fmtext_seq;
