@@ -115,6 +115,8 @@ void owl_global_init(owl_global *g) {
 
   owl_message_init_fmtext_cache();
   owl_list_create(&(g->dispatchlist));
+
+  g->fmtext_seq = 0;
 }
 
 void _owl_global_setup_windows(owl_global *g) {
@@ -942,4 +944,14 @@ char * owl_global_intern(owl_global *g, char * string)
 owl_list *owl_global_get_dispatchlist(owl_global *g)
 {
   return &(g->dispatchlist);
+}
+
+int owl_global_get_fmtext_seq(owl_global *g)
+{
+    return g->fmtext_seq;
+}
+
+void owl_global_next_fmtext_seq(owl_global *g)
+{
+    g->fmtext_seq++;
 }

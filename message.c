@@ -22,7 +22,6 @@ owl_message *owl_message_new() {
 
 void owl_message_init(owl_message *m)
 {
-
 }
 
 SV* owl_message_get_attribute_internal(owl_message *m, char *attrname)
@@ -960,6 +959,7 @@ owl_fmtext_cache * owl_message_next_fmtext() /*noproto*/
         fmtext_cache_next = fmtext_cache;
     owl_fmtext_clear(&(f->fmtext));
     f->message_id = NO_MESSAGE;
+    f->seq = owl_global_get_fmtext_seq(&g);
     return f;
 }
 
@@ -1007,7 +1007,9 @@ void owl_message_format(owl_message *m)
 
   fm = owl_message_get_fmtext_cache(m);
 
-  if (!fm || fm->message_id != owl_message_get_id(m)) {
+  if (!fm
+      || fm->message_id != owl_message_get_id(m)
+      || fm->seq != owl_global_get_fmtext_seq(&g)) {
     fm = owl_message_next_fmtext();
     owl_message_set_fmtext_cache(m, fm);
     fm->message_id = owl_message_get_id(m);
