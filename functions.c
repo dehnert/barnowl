@@ -2333,7 +2333,7 @@ void owl_function_change_currentview_filter(char *filtname)
     return;
   }
 
-  owl_view_new_filter(v, f);
+  owl_view_new_filter(v, filtname);
 
   /* Figure out what to set the current message to.
    * - If the view we're leaving has messages in it, go to the closest message
@@ -2341,7 +2341,7 @@ void owl_function_change_currentview_filter(char *filtname)
    * - If the view we're leaving is empty, try to restore the position
    *   from the last time we were in the new view.  */
   if(curid < 0) {
-    curid = owl_filter_get_cachedmsgid(v->filter);
+    curid = owl_filter_get_cachedmsgid(f);
   }
   owl_view_iterator_init_id(&it, v, curid);
 

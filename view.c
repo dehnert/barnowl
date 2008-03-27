@@ -3,10 +3,10 @@
 
 static const char fileIdent[] = "$Id$";
 
-void owl_view_create(owl_view *v, char *name, owl_filter *f)
+void owl_view_create(owl_view *v, char *name, char *filtname)
 {
   v->name=owl_strdup(name);
-  v->filter=f;
+  v->filtname=owl_strdup(filtname);
   owl_list_create(&(v->messages));
   owl_view_recalculate(v);
 }
@@ -16,10 +16,15 @@ char *owl_view_get_name(owl_view *v)
   return(v->name);
 }
 
+owl_filter * owl_view_get_filter(owl_view *v)
+{
+  return owl_global_get_filter(&g, v->filtname);
+}
+
 /* if the message matches the filter then add to view */
 void owl_view_consider_message(owl_view *v, owl_message *m)
 {
-  if (owl_filter_message_match(v->filter, m)) {
+  if (owl_filter_message_match(owl_view_get_filter(v), m)) {
     owl_list_append_element(&(v->messages),
                             (void*)owl_message_get_id(m));
   }
@@ -33,6 +38,7 @@ void owl_view_recalculate(owl_view *v)
   owl_messagelist *gml;
   owl_list *ml;
   owl_message *m;
+  owl_filter *f;
 
   gml=owl_global_get_msglist(&g);
   ml=&(v->messages);
@@ -43,16 +49,18 @@ void owl_view_recalculate(owl_view *v)
 
   /* find all the messages we want */
   owl_messagelist_start_iterate(gml);
+  f = owl_view_get_filter(v);
   while((m = owl_messagelist_iterate_next(gml)) != NULL) {
-    if (owl_filter_message_match(v->filter, m)) {
+    if (owl_filter_message_match(f, m)) {
       owl_list_append_element(ml, (void*)owl_message_get_id(m));
     }
   }
 }
 
-void owl_view_new_filter(owl_view *v, owl_filter *f)
+void owl_view_new_filter(owl_view *v, char *filtname)
 {
-  v->filter=f;
+  owl_free(v->filtname);
+  v->filtname = owl_strdup(filtname);
   owl_view_recalculate(v);
 }
 
@@ -109,7 +117,7 @@ int _owl_view_get_nearest_to_msgid(owl_view *v, int targetid)
  * be restored later if we switch back to this filter. */
 void owl_view_save_curmsgid(owl_view *v, int curid)
 {
-  owl_filter_set_cachedmsgid(v->filter, curid);
+  owl_filter_set_cachedmsgid(owl_view_get_filter(v), curid);
 }
 
 /* fmtext should already be initialized */
@@ -120,7 +128,7 @@ void owl_view_to_fmtext(owl_view *v, owl_fmtext *fm)
   owl_fmtext_append_normal(fm, "\n");
 
   owl_fmtext_append_normal(fm, "Filter: ");
-  owl_fmtext_append_normal(fm, owl_filter_get_name(v->filter));
+  owl_fmtext_append_normal(fm, owl_view_get_filtname(v));
   owl_fmtext_append_normal(fm, "\n");
 
   /* owl_fmtext_append_normal(fm, "Style: ");
@@ -130,13 +138,14 @@ void owl_view_to_fmtext(owl_view *v, owl_fmtext *fm)
 
 char *owl_view_get_filtname(owl_view *v)
 {
-  return(owl_filter_get_name(v->filter));
+  return v->filtname;
 }
 
 void owl_view_free(owl_view *v)
 {
   owl_list_free_simple(&(v->messages));
   if (v->name) owl_free(v->name);
+  if (v->filtname) owl_free(v->filtname);
 }
 
 /* View Iterators */
