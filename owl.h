@@ -422,7 +422,6 @@ typedef struct _owl_view {
   char *name;
   owl_filter *filter;
   owl_list messages;
-  owl_style *style;
 } owl_view;
 
 typedef struct _owl_view_iterator {
@@ -556,6 +555,7 @@ typedef struct _owl_global {
   owl_view_iterator curmsg, topmsg;
   int curmsg_vert_offset;
   owl_view current_view;
+  owl_style * current_style;
   owl_messagelist *msglist;
   WINDOW *recwin, *sepwin, *msgwin, *typwin;
   int needrefresh;

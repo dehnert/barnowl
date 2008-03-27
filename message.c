@@ -1015,7 +1015,7 @@ void owl_message_format(owl_message *m)
     fm->message_id = owl_message_get_id(m);
     /* for now we assume there's just the one view and use that style */
     v=owl_global_get_current_view(&g);
-    s=owl_view_get_style(v);
+    s=owl_global_get_current_style(&g);
 
     owl_style_get_formattext(s, &(fm->fmtext), m);
   }

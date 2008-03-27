@@ -3512,7 +3512,7 @@ void owl_function_change_style(owl_view *v, char *stylename)
     owl_function_error("No style named %s", stylename);
     return;
   }
-  owl_view_set_style(v, s);
+  owl_global_set_current_style(&g, s);
   owl_messagelist_invalidate_formats(owl_global_get_msglist(&g));
   owl_function_calculate_topmsg(OWL_DIRECTION_DOWNWARDS);
   owl_mainwin_redisplay(owl_global_get_mainwin(&g));
@@ -3524,7 +3524,7 @@ void owl_function_toggleoneline()
   owl_style *s;
 
   v=owl_global_get_current_view(&g);
-  s=owl_view_get_style(v);
+  s=owl_global_get_current_style(&g);
 
   if (!owl_style_matches_name(s, "oneline")) {
     owl_function_change_style(v, "oneline");

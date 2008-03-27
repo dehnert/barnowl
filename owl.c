@@ -330,7 +330,8 @@ int main(int argc, char **argv, char **env)
 
   /* set the current view */
   owl_function_debugmsg("startup: setting the current view");
-  owl_view_create(owl_global_get_current_view(&g), "main", f, owl_global_get_style_by_name(&g, "default"));
+  owl_view_create(owl_global_get_current_view(&g), "main", f);
+  owl_global_set_current_style(&g, owl_global_get_style_by_name(&g, "default"));
   owl_function_firstmsg();
 
   /* AIM init */
@@ -423,7 +424,7 @@ int main(int argc, char **argv, char **env)
   owl_function_debugmsg("startup: set style for the view: %s", owl_global_get_default_style(&g));
   s = owl_global_get_style_by_name(&g, owl_global_get_default_style(&g));
   if(s)
-      owl_view_set_style(owl_global_get_current_view(&g), s);
+      owl_global_set_current_style(&g, s);
   else
       owl_function_error("No such style: %s", owl_global_get_default_style(&g));
 

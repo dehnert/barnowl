@@ -640,6 +640,14 @@ owl_view *owl_global_get_current_view(owl_global *g) {
   return(&(g->current_view));
 }
 
+void owl_global_set_current_style(owl_global *g, owl_style *s) {
+  g->current_style = s;
+}
+
+owl_style *owl_global_get_current_style(owl_global *g) {
+  return g->current_style;
+}
+
 owl_message *owl_global_get_current_message(owl_global *g) {
   owl_view *cur = owl_global_get_current_view(g);
   if(owl_view_is_empty(cur)) return NULL;
@@ -868,10 +876,10 @@ void owl_global_add_style(owl_global *g, owl_style *s)
    * If we're redefining the current style, make sure to update
    * pointers to it.
    */
-  if(g->current_view.style
-     && !strcmp(owl_style_get_name(g->current_view.style),
+  if(g->current_style
+     && !strcmp(owl_style_get_name(g->current_style),
                 owl_style_get_name(s)))
-    g->current_view.style = s;
+    g->current_style = s;
   owl_dict_insert_element(&(g->styledict), owl_style_get_name(s),
                           s, (void(*)(void*))owl_style_free);
 }

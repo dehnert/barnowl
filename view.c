@@ -3,11 +3,10 @@
 
 static const char fileIdent[] = "$Id$";
 
-void owl_view_create(owl_view *v, char *name, owl_filter *f, owl_style *s)
+void owl_view_create(owl_view *v, char *name, owl_filter *f)
 {
   v->name=owl_strdup(name);
   v->filter=f;
-  v->style=s;
   owl_list_create(&(v->messages));
   owl_view_recalculate(v);
 }
@@ -55,20 +54,6 @@ void owl_view_new_filter(owl_view *v, owl_filter *f)
 {
   v->filter=f;
   owl_view_recalculate(v);
-}
-
-void owl_view_set_style(owl_view *v, owl_style *s)
-{
-  v->style=s;
-}
-
-owl_style *owl_view_get_style(owl_view *v)
-{
-  return(v->style);
-}
-
-char *owl_view_get_style_name(owl_view *v) {
-  return(owl_style_get_name(v->style));
 }
 
 owl_message *_owl_view_get_element(owl_view *v, int index)
@@ -138,9 +123,9 @@ void owl_view_to_fmtext(owl_view *v, owl_fmtext *fm)
   owl_fmtext_append_normal(fm, owl_filter_get_name(v->filter));
   owl_fmtext_append_normal(fm, "\n");
 
-  owl_fmtext_append_normal(fm, "Style: ");
+  /* owl_fmtext_append_normal(fm, "Style: ");
   owl_fmtext_append_normal(fm, owl_style_get_name(v->style));
-  owl_fmtext_append_normal(fm, "\n");
+  owl_fmtext_append_normal(fm, "\n"); */
 }
 
 char *owl_view_get_filtname(owl_view *v)

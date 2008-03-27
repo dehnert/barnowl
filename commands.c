@@ -2560,7 +2560,7 @@ char *owl_command_getstyle(int argc, char **argv, char *buff)
     owl_function_makemsg("Wrong number of arguments for %s", argv[0]);
     return NULL;
   }
-  stylename = owl_view_get_style_name(owl_global_get_current_view(&g));
+  stylename = owl_style_get_name(owl_global_get_current_style(&g));
   if (stylename) stylename = owl_strdup(stylename);
   return stylename;
 }
