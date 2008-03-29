@@ -432,7 +432,7 @@ typedef struct _owl_view_iterator {
 typedef struct _owl_mainwin {
   int curtruncated;
   int lasttruncated;
-  owl_view_iterator lastdisplayed;
+  owl_view_iterator *lastdisplayed;
 } owl_mainwin;
 
 typedef struct _owl_history {
@@ -552,10 +552,10 @@ typedef struct _owl_global {
   owl_context ctx;
   owl_errqueue errqueue;
   int lines, cols;
-  owl_view_iterator curmsg, topmsg;
+  owl_view_iterator *curmsg, *topmsg;
   int curmsg_vert_offset;
-  owl_view current_view;
-  owl_style * current_style;
+  owl_view *current_view;
+  owl_style *current_style;
   owl_messagelist *msglist;
   WINDOW *recwin, *sepwin, *msgwin, *typwin;
   int needrefresh;

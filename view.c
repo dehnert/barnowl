@@ -3,12 +3,14 @@
 
 static const char fileIdent[] = "$Id$";
 
-void owl_view_create(owl_view *v, char *name, char *filtname)
+owl_view* owl_view_new(char *name, char *filtname)
 {
+  owl_view *v = owl_malloc(sizeof(owl_view));
   v->name=owl_strdup(name);
   v->filtname=owl_strdup(filtname);
   owl_list_create(&(v->messages));
   owl_view_recalculate(v);
+  return v;
 }
 
 char *owl_view_get_name(owl_view *v)
@@ -150,6 +152,11 @@ void owl_view_free(owl_view *v)
 
 /* View Iterators */
 
+owl_view_iterator* owl_view_iterator_new()
+{
+  return owl_malloc(sizeof(owl_view_iterator));
+}
+
 void owl_view_iterator_invalidate(owl_view_iterator *it)
 {
   it->index = -1;
@@ -225,4 +232,15 @@ owl_message * owl_view_iterator_get_message(owl_view_iterator *it)
 int owl_view_iterator_cmp(owl_view_iterator *it1, owl_view_iterator *it2)
 {
   return it1->index - it2->index;
+}
+
+void owl_view_iterator_free(owl_view_iterator *it)
+{
+  owl_free(it);
+}
+
+owl_view_iterator* owl_view_iterator_free_later(owl_view_iterator *it)
+{
+  /* do-de-doo, leaking da memory... */
+  return it;
 }

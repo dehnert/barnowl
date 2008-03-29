@@ -55,6 +55,8 @@ void owl_global_init(owl_global *g) {
   owl_list_create(&(g->messagequeue));
   owl_dict_create(&(g->styledict));
   g->curmsg_vert_offset=0;
+  g->curmsg = owl_view_iterator_new();
+  g->topmsg = owl_view_iterator_new();
   g->resizepending=0;
   g->typwinactive=0;
   g->direction=OWL_DIRECTION_DOWNWARDS;
@@ -179,11 +181,11 @@ int owl_global_get_recwin_lines(owl_global *g) {
 /* curmsg */
 
 owl_view_iterator* owl_global_get_curmsg(owl_global *g) {
-  return &(g->curmsg);
+  return g->curmsg;
 }
 
 void owl_global_set_curmsg(owl_global *g, owl_view_iterator *it) {
-  owl_view_iterator_clone(&(g->curmsg), it);
+  owl_view_iterator_clone(g->curmsg, it);
   /* we will reset the vertical offset from here */
   /* we might want to move this out to the functions later */
   owl_global_set_curmsg_vert_offset(g, 0);
@@ -192,14 +194,14 @@ void owl_global_set_curmsg(owl_global *g, owl_view_iterator *it) {
 /* topmsg */
 
 owl_view_iterator* owl_global_get_topmsg(owl_global *g) {
-  return &(g->topmsg);
+  return g->topmsg;
 }
 
 void owl_global_set_topmsg(owl_global *g, owl_view_iterator *it) {
   if(!it) {
-    owl_view_iterator_invalidate(&(g->topmsg));
+    owl_view_iterator_invalidate(g->topmsg);
   } else {
-    owl_view_iterator_clone(&(g->topmsg), it);
+    owl_view_iterator_clone(g->topmsg, it);
   }
 }
 
@@ -637,7 +639,7 @@ int owl_global_get_nextmsgid(owl_global *g) {
 /* current view */
 
 owl_view *owl_global_get_current_view(owl_global *g) {
-  return(&(g->current_view));
+  return(g->current_view);
 }
 
 void owl_global_set_current_style(owl_global *g, owl_style *s) {

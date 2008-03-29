@@ -330,7 +330,7 @@ int main(int argc, char **argv, char **env)
 
   /* set the current view */
   owl_function_debugmsg("startup: setting the current view");
-  owl_view_create(owl_global_get_current_view(&g), "main", "all");
+  g.current_view = owl_view_new("main", "all");
   owl_global_set_current_style(&g, owl_global_get_style_by_name(&g, "default"));
   owl_function_firstmsg();
 

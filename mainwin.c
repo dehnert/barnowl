@@ -5,7 +5,8 @@ static const char fileIdent[] = "$Id$";
 void owl_mainwin_init(owl_mainwin *mw)
 {
   mw->curtruncated=0;
-  owl_view_iterator_invalidate(&(mw->lastdisplayed));
+  mw->lastdisplayed = owl_view_iterator_new();
+  owl_view_iterator_invalidate(mw->lastdisplayed);
 }
 
 void owl_mainwin_redisplay(owl_mainwin *mw)
@@ -14,11 +15,13 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
   int p, q, lines, isfull;
   int x, y, savey, recwinlines, start;
   int fgcolor, bgcolor;
-  owl_view_iterator *topmsg, *curmsg, it, *iter = &it;
+  owl_view_iterator *topmsg, *curmsg, *iter;
   WINDOW *recwin;
   owl_view *v;
   owl_list *filtlist;
   owl_filter *f;
+
+  iter = owl_view_iterator_free_later(owl_view_iterator_new());
 
   recwin=owl_global_get_curs_recwin(&g);
   topmsg=owl_global_get_topmsg(&g);
@@ -43,7 +46,7 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
       owl_global_set_topmsg(&g, NULL);
       } */
     mw->curtruncated=0;
-    owl_view_iterator_invalidate(&(mw->lastdisplayed));
+    owl_view_iterator_invalidate(mw->lastdisplayed);
     wnoutrefresh(recwin);
     owl_global_set_needrefresh(&g);
     return;
@@ -142,7 +145,7 @@ void owl_mainwin_redisplay(owl_mainwin *mw)
   }
 
   owl_view_iterator_prev(iter);
-  owl_view_iterator_clone(&(mw->lastdisplayed), iter);
+  owl_view_iterator_clone(mw->lastdisplayed, iter);
 
   wnoutrefresh(recwin);
   owl_global_set_needrefresh(&g);
@@ -163,5 +166,5 @@ int owl_mainwin_is_last_msg_truncated(owl_mainwin *mw)
 
 owl_view_iterator *owl_mainwin_get_last_msg(owl_mainwin *mw)
 {
-  return &(mw->lastdisplayed);
+  return mw->lastdisplayed;
 }

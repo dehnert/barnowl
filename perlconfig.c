@@ -391,9 +391,18 @@ void owl_perlconfig_mainloop()
 
 SV * owl_perl_new(char *class)
 {
+  return owl_perl_new_argv(class, NULL, 0);
+
+}
+
+SV * owl_perl_new_argv(char *class, char **argv, int argc)
+{
   SV *obj;
+  int i;
   OWL_PERL_CALL_METHOD(sv_2mortal(newSVpv(class, 0)), "new",
-                       // No args
+                       for(i=0;i<argc;i++) {
+                         XPUSHs(sv_2mortal(newSVpv(argv[i], 0)));
+                       }
                        ,
                        "Error in perl: %s\n",
                        1,

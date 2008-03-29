@@ -13,9 +13,11 @@ void sepbar(char *in)
   WINDOW *sepwin;
   owl_messagelist *ml;
   owl_view *v;
-  owl_view_iterator iter;
+  owl_view_iterator *iter;
   int x, y;
   char *foo, *appendtosepbar;
+
+  iter = owl_view_iterator_free_later(owl_view_iterator_new());
 
   sepwin=owl_global_get_curs_sepwin(&g);
   ml=owl_global_get_msglist(&g);
@@ -59,8 +61,8 @@ void sepbar(char *in)
     wattroff(sepwin, A_BOLD);
   }
 
-  owl_view_iterator_clone(&iter, owl_mainwin_get_last_msg(owl_global_get_mainwin(&g)));
-  if (owl_view_iterator_is_valid(&iter)) {
+  owl_view_iterator_clone(iter, owl_mainwin_get_last_msg(owl_global_get_mainwin(&g)));
+  if (owl_view_iterator_is_valid(iter)) {
     getyx(sepwin, y, x);
     wmove(sepwin, y, x+2);
     wattron(sepwin, A_BOLD);
