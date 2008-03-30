@@ -1,35 +1,41 @@
 #include <stdlib.h>
+#define OWL_PERL
 #include "owl.h"
 
 static const char fileIdent[] = "$Id$";
 
-owl_view* owl_view_new(char *name, char *filtname)
+owl_view_iterator* owl_view_new(char *name, char *filtname)
 {
-  owl_view *v = owl_malloc(sizeof(owl_view));
-  v->name=owl_strdup(name);
-  v->filtname=owl_strdup(filtname);
-  owl_list_create(&(v->messages));
-  owl_view_recalculate(v);
-  return v;
+  char *args[] = {name, filtname};
+  return owl_perl_new_argv("BarnOwl::View", args, 2);
 }
 
 char *owl_view_get_name(owl_view *v)
 {
-  return(v->name);
+  SV *name;
+  OWL_PERL_CALL_METHOD(v, "get_name",
+                       /* no args */,
+                       /* error message */
+                       "Error in get_name: %s",
+                       1 /* fatal errors */,
+                       name = SvREFCNT_inc(POPs););
+  sv_2mortal(name);
+  return SvPV_nolen(name);
 }
 
 owl_filter * owl_view_get_filter(owl_view *v)
 {
-  return owl_global_get_filter(&g, v->filtname);
+  return owl_global_get_filter(&g, owl_view_get_filtname(v));
 }
 
 /* if the message matches the filter then add to view */
 void owl_view_consider_message(owl_view *v, owl_message *m)
 {
-  if (owl_filter_message_match(owl_view_get_filter(v), m)) {
-    owl_list_append_element(&(v->messages),
-                            (void*)owl_message_get_id(m));
-  }
+  OWL_PERL_CALL_METHOD(v, "consider_message",
+                       XPUSHs((SV*)m);,
+                       "Error in consider_message: %s",
+                       /* fatal */ 1,
+                       OWL_PERL_VOID_CALL);
 }
 
 /* remove all messages, add all the global messages that match the
@@ -37,82 +43,31 @@ void owl_view_consider_message(owl_view *v, owl_message *m)
  */
 void owl_view_recalculate(owl_view *v)
 {
-  owl_messagelist *gml;
-  owl_list *ml;
-  owl_message *m;
-  owl_filter *f;
-
-  gml=owl_global_get_msglist(&g);
-  ml=&(v->messages);
-
-  /* nuke the old list */
-  owl_list_free_simple(ml);
-  owl_list_create(ml);
-
-  /* find all the messages we want */
-  owl_messagelist_start_iterate(gml);
-  f = owl_view_get_filter(v);
-  while((m = owl_messagelist_iterate_next(gml)) != NULL) {
-    if (owl_filter_message_match(f, m)) {
-      owl_list_append_element(ml, (void*)owl_message_get_id(m));
-    }
-  }
+  OWL_PERL_CALL_METHOD(v, "recalculate",
+                       /* no args */,
+                       "Error in recalculate: %s",
+                       /* fatal */ 1,
+                       OWL_PERL_VOID_CALL);
 }
 
 void owl_view_new_filter(owl_view *v, char *filtname)
 {
-  owl_free(v->filtname);
-  v->filtname = owl_strdup(filtname);
-  owl_view_recalculate(v);
-}
-
-owl_message *_owl_view_get_element(owl_view *v, int index)
-{
-  if(index < 0 || index >= _owl_view_get_size(v))
-    return NULL;
-  int id = (int)owl_list_get_element(&(v->messages), index);
-  return owl_messagelist_get_by_id(owl_global_get_msglist(&g), id);
+  OWL_PERL_CALL_METHOD(v, "new_filter",
+                       mXPUSHp(filtname, strlen(filtname));,
+                       "Error in new_filter: %s",
+                       /* fatal */ 1,
+                       OWL_PERL_VOID_CALL);
 }
 
 int owl_view_is_empty(owl_view *v)
 {
-  return owl_list_get_size(&(v->messages)) == 0;
-}
-
-int _owl_view_get_size(owl_view *v)
-{
-  return(owl_list_get_size(&(v->messages)));
-}
-
-/* Returns the position in the view with a message closest 
- * to the passed msgid. */
-int _owl_view_get_nearest_to_msgid(owl_view *v, int targetid)
-{
-  int first, last, mid = 0, max, bestdist, curid = 0;
-
-  first = 0;
-  last = max = _owl_view_get_size(v) - 1;
-  while (first <= last) {
-    mid = (first + last) / 2;
-    curid = (int)owl_list_get_element(&(v->messages), mid);
-    if (curid == targetid) {
-      return(mid);
-    } else if (curid < targetid) {
-      first = mid + 1;
-    } else {
-      last = mid - 1;
-    }
-  }
-  bestdist = abs(targetid-curid);
-  if (curid < targetid && mid+1 < max) {
-    curid = (int)owl_list_get_element(&(v->messages), mid+1);
-    mid = (bestdist < abs(targetid-curid)) ? mid : mid+1;
-  }
-  else if (curid > targetid && mid-1 >= 0) {
-    curid = (int)owl_list_get_element(&(v->messages), mid-1);
-    mid = (bestdist < abs(targetid-curid)) ? mid : mid-1;
-  }
-  return mid;
+  int empty;
+  OWL_PERL_CALL_METHOD(v, "is_empty",
+                       /* no args */,
+                       "Error: is_empty: %s",
+                       /* fatal */ 1,
+                       empty = POPi);
+  return empty;
 }
 
 /* saves the current message position in the filter so it can 
@@ -126,121 +81,187 @@ void owl_view_save_curmsgid(owl_view *v, int curid)
 void owl_view_to_fmtext(owl_view *v, owl_fmtext *fm)
 {
   owl_fmtext_append_normal(fm, "Name: ");
-  owl_fmtext_append_normal(fm, v->name);
+  owl_fmtext_append_normal(fm, owl_view_get_name(v));
   owl_fmtext_append_normal(fm, "\n");
 
   owl_fmtext_append_normal(fm, "Filter: ");
   owl_fmtext_append_normal(fm, owl_view_get_filtname(v));
   owl_fmtext_append_normal(fm, "\n");
-
-  /* owl_fmtext_append_normal(fm, "Style: ");
-  owl_fmtext_append_normal(fm, owl_style_get_name(v->style));
-  owl_fmtext_append_normal(fm, "\n"); */
 }
 
 char *owl_view_get_filtname(owl_view *v)
 {
-  return v->filtname;
+  SV *name;
+  OWL_PERL_CALL_METHOD(v, "get_filter",
+                       /* no args */,
+                       "Error: get_filter: %s",
+                       1 /* fatal errors */,
+                       name = SvREFCNT_inc(POPs));
+  sv_2mortal(name);
+  return SvPV_nolen(name);
 }
 
 void owl_view_free(owl_view *v)
 {
-  owl_list_free_simple(&(v->messages));
-  if (v->name) owl_free(v->name);
-  if (v->filtname) owl_free(v->filtname);
+  SvREFCNT_dec((SV*)v);
 }
 
-/* View Iterators */
+/********************************************************************
+ * View iterators
+ *
+ * The only supported way to access the elements of a view are through
+ * the view iterator API presented here.
+ *
+ * There are three ways to initialize an iterator:
+ * * At the first of the view's messages
+ * * Given an ID, at the message in the view closest to that ID
+ * * At the last of the view's messages
+ *
+ * In addition to pointing at a message, an iterator may point at two
+ * special positions, before the first message in the list, and after
+ * the last message in the list
+ *
+ * The predicates is_at_start and is_at_end test for these special
+ * iterators.
+ *
+ * The predicates has_next and has_prev test whether an iterator
+ * points to the first or last message in the view
+ *
+ * _prev and _next, if applied to the special "start" or "end"
+ * iterators respectively, are no-ops.
+ */
 
-owl_view_iterator* owl_view_iterator_new()
+#define CALL_BOOL(it, method)                           \
+  int _rv;                                              \
+  OWL_PERL_CALL_METHOD(it, method,                      \
+                       /* No args */,                   \
+                       "Error: " #method ": %s",        \
+                       /* fatal */ 1,                   \
+                       _rv = POPi);                     \
+  return _rv;
+
+#define CALL_VOID(it, method)                           \
+  OWL_PERL_CALL_METHOD(it, method,                      \
+                       /* No args */,                   \
+                       "Error: " #method ": %s",        \
+                       /* fatal */ 1,                   \
+                       OWL_PERL_VOID_CALL);             \
+
+owl_view_iterator * owl_view_iterator_new()
 {
-  return owl_malloc(sizeof(owl_view_iterator));
+  return owl_perl_new("BarnOwl::View::Iterator");
 }
 
 void owl_view_iterator_invalidate(owl_view_iterator *it)
 {
-  it->index = -1;
-  it->view = NULL;
+  CALL_VOID(it, "invalidate");
 }
 
 void owl_view_iterator_init_id(owl_view_iterator *it, owl_view *v, int message_id)
 {
-  it->view = v;
-  it->index = _owl_view_get_nearest_to_msgid(v, message_id);
+  OWL_PERL_CALL_METHOD(it, "initialize_at_id",
+                       /* args */
+                       XPUSHs(v);
+                       mXPUSHi(message_id);,
+                       "Error: initialize at id: %s",
+                       /* fatal */ 1,
+                       OWL_PERL_VOID_CALL);
 }
 
 void owl_view_iterator_init_start(owl_view_iterator *it, owl_view *v)
 {
-  it->view = v;
-  it->index = 0;
+  OWL_PERL_CALL_METHOD(it, "initialize_at_start",
+                       /* args */
+                       XPUSHs(v);,
+                       "Error: initialize at start: %s",
+                       /* fatal */ 1,
+                       OWL_PERL_VOID_CALL);
 }
 
 void owl_view_iterator_init_end(owl_view_iterator *it, owl_view *v)
 {
-  it->view = v;
-  it->index = _owl_view_get_size(v) - 1;
+  OWL_PERL_CALL_METHOD(it, "initialize_at_end",
+                       /* args */
+                       XPUSHs(v);,
+                       "Error: initialize at end: %s",
+                       /* fatal */ 1,
+                       OWL_PERL_VOID_CALL);
 }
 
 void owl_view_iterator_clone(owl_view_iterator *dst, owl_view_iterator *src)
 {
-  dst->view  = src->view;
-  dst->index = src->index;
+  OWL_PERL_CALL_METHOD(dst, "clone",
+                       XPUSHs(src);,
+                       "Error: clone: %s",
+                       /* fatal */ 1,
+                       OWL_PERL_VOID_CALL);
 }
 
 int owl_view_iterator_has_prev(owl_view_iterator *it)
 {
-  return it->index > 0;
+  CALL_BOOL(it, "has_prev");
 }
 
 int owl_view_iterator_has_next(owl_view_iterator *it)
 {
-  return it->index < _owl_view_get_size(it->view) - 1;
+  CALL_BOOL(it, "has_next");
 }
 
 int owl_view_iterator_is_at_end(owl_view_iterator *it)
 {
-  return it->index >= _owl_view_get_size(it->view);
+  CALL_BOOL(it, "at_end");
 }
 
 int owl_view_iterator_is_at_start(owl_view_iterator *it)
 {
-  return it->index < 0;
+  CALL_BOOL(it, "at_start");
 }
 
 int owl_view_iterator_is_valid(owl_view_iterator *it)
 {
-  return it->view != NULL && it->index >= 0 && it->index < _owl_view_get_size(it->view);
+  CALL_BOOL(it, "valid");
 }
 
 void owl_view_iterator_prev(owl_view_iterator *it)
 {
-  if(!owl_view_iterator_is_at_start(it))
-    it->index--;
+  CALL_VOID(it, "prev");
 }
 
 void owl_view_iterator_next(owl_view_iterator *it)
 {
-  if(!owl_view_iterator_is_at_end(it))
-    it->index++;
+  CALL_VOID(it, "next");
 }
 
-owl_message * owl_view_iterator_get_message(owl_view_iterator *it)
+owl_message* owl_view_iterator_get_message(owl_view_iterator *it)
 {
-  return _owl_view_get_element(it->view, it->index);
+  SV *msg;
+  OWL_PERL_CALL_METHOD(it, "get_message",
+                       /* no args */,
+                       "Error: get_message: %s",
+                       /* fatal errors */ 1,
+                       msg = POPs;
+                       if(SvROK(msg)) SvREFCNT_inc(msg);
+                       );
+  return SvROK(msg) ? sv_2mortal(msg) : NULL;
 }
 
 int owl_view_iterator_cmp(owl_view_iterator *it1, owl_view_iterator *it2)
 {
-  return it1->index - it2->index;
+  int cmp;
+  OWL_PERL_CALL_METHOD(it1, "cmp",
+                       XPUSHs(it2);,
+                       "Error: cmp: %s",
+                       /* fatal */ 1,
+                       cmp = POPi);
+  return cmp;
 }
 
 void owl_view_iterator_free(owl_view_iterator *it)
 {
-  owl_free(it);
+  SvREFCNT_dec(it);
 }
 
 owl_view_iterator* owl_view_iterator_free_later(owl_view_iterator *it)
 {
-  /* do-de-doo, leaking da memory... */
-  return it;
+  return sv_2mortal(it);
 }

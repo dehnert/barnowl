@@ -55,8 +55,6 @@ void owl_global_init(owl_global *g) {
   owl_list_create(&(g->messagequeue));
   owl_dict_create(&(g->styledict));
   g->curmsg_vert_offset=0;
-  g->curmsg = owl_view_iterator_new();
-  g->topmsg = owl_view_iterator_new();
   g->resizepending=0;
   g->typwinactive=0;
   g->direction=OWL_DIRECTION_DOWNWARDS;
@@ -93,7 +91,6 @@ void owl_global_init(owl_global *g) {
   owl_global_set_confdir(g, cd);
   owl_free(cd);
 
-  owl_mainwin_init(&(g->mw));
   owl_popwin_init(&(g->pw));
 
   g->aim_screenname=NULL;
@@ -119,6 +116,15 @@ void owl_global_init(owl_global *g) {
   owl_list_create(&(g->dispatchlist));
 
   g->fmtext_seq = 0;
+}
+
+/* Called once perl has been initialized */
+void owl_global_complete_setup(owl_global *g)
+{
+  owl_mainwin_init(&(g->mw));
+  g->msglist = owl_messagelist_new();
+  g->curmsg = owl_view_iterator_new();
+  g->topmsg = owl_view_iterator_new();
 }
 
 void _owl_global_setup_windows(owl_global *g) {

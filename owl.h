@@ -418,7 +418,7 @@ typedef struct _owl_filter {
   int cachedmsgid;  /* cached msgid: should move into view eventually */
 } owl_filter;
 
-typedef struct _owl_view {
+/* typedef struct _owl_view {
   char *name;
   char *filtname;
   owl_list messages;
@@ -427,7 +427,10 @@ typedef struct _owl_view {
 typedef struct _owl_view_iterator {
   owl_view *view;
   int index;
-} owl_view_iterator;
+  } owl_view_iterator; */
+
+typedef SV owl_view;
+typedef SV owl_view_iterator;
 
 typedef struct _owl_mainwin {
   int curtruncated;
