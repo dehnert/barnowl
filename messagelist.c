@@ -22,29 +22,6 @@ int owl_messagelist_get_size(owl_messagelist *ml)
   return size;
 }
 
-void owl_messagelist_start_iterate(owl_messagelist *ml) {
-  OWL_PERL_CALL_METHOD(ml, "start_iterate",
-                       , // No arguments
-                       // Error
-                       "Error in start_iterate: %s",
-                       1, //Fatal errors
-                       OWL_PERL_VOID_CALL
-                       );
-}
-
-owl_message *owl_messagelist_iterate_next(owl_messagelist *ml) {
-  SV *msg;
-  OWL_PERL_CALL_METHOD(ml, "iterate_next",
-                       , // No arguments
-                       // Error
-                       "Error in iterate_next: %s",
-                       1, //Fatal errors
-                       msg = POPs;
-                       if(SvROK(msg)) SvREFCNT_inc(msg);
-                       );
-  return SvROK(msg) ? sv_2mortal(msg) : NULL;
-}
-
 owl_message *owl_messagelist_get_by_id(owl_messagelist *ml, int target_id)
 {
   SV *msg;
