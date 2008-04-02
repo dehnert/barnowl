@@ -306,6 +306,24 @@ sub _new_variable {
 
 package BarnOwl::MessageList;
 
+sub binsearch {
+    my $list = shift;
+    my $val  = shift;
+    my $key  = shift || sub {return $_[0]};
+    my $left = 0;
+    my $right = scalar @{$list} - 1;
+    my $mid = $left;
+    while($left <= $right) {
+        $mid = ($left + $right)/2;
+        if($key->($list->[$mid]) < $val) {
+            $left = $mid + 1;
+        } else {
+            $right = $mid - 1;
+        }
+    }
+    return $mid;
+}
+
 my $__next_id = 0;
 
 sub next_id {
@@ -318,7 +336,7 @@ sub new {
         use BarnOwl::MessageList::SQL;
         $ml = BarnOwl::MessageList::SQL->new;
     };
-
+    
     if($@) {
         push @BarnOwl::__startup_errors, "Unable to load SQL message list\n$@";
     } else {
@@ -338,10 +356,18 @@ sub get_size {
     return scalar keys %{$self->{messages}};
 }
 
-sub start_iterate {
+sub iterate_begin {
     my $self = shift;
+    my $id   = shift;
+    my $rev  = shift;
     $self->{keys} = [sort {$a <=> $b} keys %{$self->{messages}}];
-    $self->{iterator} = 0;
+    if($id < 0) {
+        $self->{iterator} = scalar @{$self->{keys}} - 1;
+    } else {
+        $self->{iterator} = binsearch($self->{keys}, $id);
+    }
+    
+    $self->{iterate_direction} = $rev ? -1 : 1;
 }
 
 sub iterate_next {
@@ -350,6 +376,10 @@ sub iterate_next {
         return undef;
     }
     return $self->get_by_id($self->{keys}->[$self->{iterator}++]);
+}
+
+sub iterate_done {
+    # nop
 }
 
 sub get_by_id {
@@ -409,7 +439,7 @@ sub consider_message {
 sub recalculate {
     my $self = shift;
     my $ml   = BarnOwl::message_list();
-    $ml->start_iterate;
+    $ml->iterate_begin(0, 0);
     $self->{messages} = [];
     while(my $msg = $ml->iterate_next) {
         $self->consider_message($msg);
@@ -476,18 +506,7 @@ sub initialize_at_id {
     my $id   = shift;
     $self->{view} = $view;
     my $list = $self->view->messages;
-    my $left = 0;
-    my $right = scalar @{$list} - 1;
-    my $mid;
-    while($left <= $right) {
-        $mid = ($left + $right)/2;
-        if($list->[$mid]->id < $id) {
-            $left = $mid + 1;
-        } else {
-            $right = $mid - 1;
-        }
-    }
-    $self->{index} = $mid;
+    $self->{index} = BarnOwl::MessageList::binsearch($list, $id, sub{shift->id});
 }
 
 sub clone {
