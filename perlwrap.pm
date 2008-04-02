@@ -494,7 +494,8 @@ sub fill_back {
 sub fill_forward {
     my $self = shift;
     return if $self->at_end;
-    my $pos  = shift || ($self->messages->[-1] + 1);
+    my $pos  = shift;
+    $pos = ($self->messages->[-1] + 1) unless defined $pos;
     BarnOwl::debug("Fill forward from $pos...");
     my $ml   = BarnOwl::message_list();
     $ml->iterate_begin($pos, 0);
