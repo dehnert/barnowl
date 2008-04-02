@@ -2329,7 +2329,7 @@ void owl_function_change_currentview_filter(char *filtname)
 {
   owl_view *v;
   owl_filter *f;
-  int curid=-1;
+  int curid=-1, topid;
   owl_view_iterator *it;
   owl_message *curm=NULL;
 
@@ -2351,6 +2351,8 @@ void owl_function_change_currentview_filter(char *filtname)
     return;
   }
 
+  topid = owl_message_get_id(owl_view_iterator_get_message(owl_global_get_topmsg(&g)));
+
   owl_view_new_filter(v, filtname);
 
   /* Figure out what to set the current message to.
@@ -2364,6 +2366,8 @@ void owl_function_change_currentview_filter(char *filtname)
   owl_view_iterator_init_id(it, v, curid);
 
   owl_global_set_curmsg(&g, it);
+  owl_view_iterator_init_id(owl_global_get_topmsg(&g), v, topid);
+
   owl_function_calculate_topmsg(OWL_DIRECTION_DOWNWARDS);
   owl_mainwin_redisplay(owl_global_get_mainwin(&g));
   owl_global_set_direction_downwards(&g);
