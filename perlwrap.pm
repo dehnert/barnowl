@@ -557,16 +557,24 @@ sub initialize_at_start {
     my $self = shift;
     my $view = shift;
     $self->{view}  = $view;
-    $self->{index} = 0;
-    $view->recalculate_around(0);
+    if($view->at_start) {
+        $self->{index} = -$view->offset;
+    } else {
+        $self->{index} = 0;
+        $view->recalculate_around(0);
+    }
 }
 
 sub initialize_at_end {
     my $self = shift;
     my $view = shift;
     $self->{view}  = $view;
-    $self->{index} = 0;
-    $view->recalculate_around(-1);
+    if($view->at_end) {
+        $self->{index} = (scalar @{$view->messages}) - 1 - $view->offset;
+    } else {
+        $self->{index} = 0;
+        $view->recalculate_around(-1);
+    }
 }
 
 sub initialize_at_id {
@@ -574,8 +582,14 @@ sub initialize_at_id {
     my $view = shift;
     my $id   = shift;
     $self->{view} = $view;
-    $self->{index} = 0;
-    $view->recalculate_around($id);
+    if(scalar @{$view->messages} &&
+       $view->messages->[0]  <= $id &&
+       $view->messages->[-1] >= $id) {
+        $self->{index} = BarnOwl::MessageList::binsearch($view->messages, $id) - $view->offset;
+    } else {
+        $self->{index} = 0;
+        $view->recalculate_around($id);
+    }
 }
 
 sub clone {
