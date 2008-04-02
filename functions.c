@@ -753,6 +753,7 @@ void owl_function_expunge()
      (as close as possible to where we last where) */
   owl_view_iterator_init_id(it, v, lastmsgid);
   owl_global_set_curmsg(&g, it);
+  owl_global_set_topmsg(&g, it);
   owl_function_calculate_topmsg(OWL_DIRECTION_NONE);
   /* if there are no messages set the direction to down in case we
      delete everything upwards */
@@ -781,8 +782,9 @@ void owl_function_lastmsg_noredisplay()
 
   v=owl_global_get_current_view(&g);
   owl_view_iterator_init_end(it, v);
+  owl_global_set_topmsg(&g, it);
   owl_global_set_curmsg(&g, it);
-  owl_function_calculate_topmsg(OWL_DIRECTION_DOWNWARDS);
+  owl_function_calculate_topmsg(OWL_DIRECTION_UPWARDS);
   /* owl_mainwin_redisplay(owl_global_get_mainwin(&g)); */
   owl_global_set_direction_downwards(&g);
 }
@@ -2329,7 +2331,7 @@ void owl_function_change_currentview_filter(char *filtname)
 {
   owl_view *v;
   owl_filter *f;
-  int curid=-1, topid;
+  int curid=-1;
   owl_view_iterator *it;
   owl_message *curm=NULL;
 
@@ -2351,8 +2353,6 @@ void owl_function_change_currentview_filter(char *filtname)
     return;
   }
 
-  topid = owl_message_get_id(owl_view_iterator_get_message(owl_global_get_topmsg(&g)));
-
   owl_view_new_filter(v, filtname);
 
   /* Figure out what to set the current message to.
@@ -2366,7 +2366,7 @@ void owl_function_change_currentview_filter(char *filtname)
   owl_view_iterator_init_id(it, v, curid);
 
   owl_global_set_curmsg(&g, it);
-  owl_view_iterator_init_id(owl_global_get_topmsg(&g), v, topid);
+  owl_global_set_topmsg(&g, it);
 
   owl_function_calculate_topmsg(OWL_DIRECTION_DOWNWARDS);
   owl_mainwin_redisplay(owl_global_get_mainwin(&g));
