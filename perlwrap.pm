@@ -473,7 +473,7 @@ sub fill_back {
     BarnOwl::debug("Fill back from $pos...");
     my $ml   = BarnOwl::message_list();
     return if $self->at_start;
-    $ml->iterate_begin($pos, 0);
+    $ml->iterate_begin($pos, 1);
     my $count = 0;
     while($count < $FILL_STEP) {
         my $m = $ml->iterate_next;
@@ -523,12 +523,7 @@ sub new_filter {
 
 sub is_empty {
     my $self = shift;
-    return $self->_size == 0;
-}
-
-sub _size {
-    my $self = shift;
-    return scalar @{$self->messages};
+    return scalar @{$self->messages} == 0;
 }
 
 #####################################################################
@@ -593,25 +588,25 @@ sub clone {
 sub has_prev {
     my $self = shift;
     $self->fill_back;
-    return $self->index > 0;
+    return $self->eff_index > 0;
 }
 
 sub has_next {
     my $self = shift;
     $self->fill_forward;
-    return $self->index < $self->view->_size - 1;
+    return $self->eff_index < scalar @{$self->view->messages} - 1;
 }
 
 sub at_start {
     my $self = shift;
     $self->fill_back;
-    return $self->index < 0;
+    return $self->eff_index < 0;
 }
 
 sub at_end {
     my $self = shift;
     $self->fill_forward;
-    return $self->index >= $self->view->_size;
+    return $self->eff_index >= scalar @{$self->view->messages};
 }
 
 
