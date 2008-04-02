@@ -451,6 +451,8 @@ sub recalculate {
 sub recalculate_around {
     my $self = shift;
     my $where = shift;
+    $self->recalculate;
+    BarnOwl::debug("recalulate @{[$self->get_filter]} around $where");
     if($where == 0) {
         $self->{at_start} = 1;
         $self->fill_forward(0);
@@ -468,13 +470,15 @@ my $FILL_STEP = 100;
 sub fill_back {
     my $self = shift;
     my $pos  = shift || $self->messages->[0] - 1;
+    BarnOwl::debug("Fill back from $pos...");
     my $ml   = BarnOwl::message_list();
     return if $self->at_start;
-    $ml->iterate_begin($pos, 1);
+    $ml->iterate_begin($pos, 0);
     my $count = 0;
     while($count < $FILL_STEP) {
         my $m = $ml->iterate_next;
         unless(defined $m) {
+            BarnOwl::debug("Hit start in fill_back.");
             $self->{at_start} = 1;
             last;
         }
@@ -488,6 +492,7 @@ sub fill_back {
 }
 
 sub fill_forward {
+    BarnOwl::debug("Fill forward...");
     my $self = shift;
     my $pos  = shift || $self->messages->[-1] + 1;
     my $ml   = BarnOwl::message_list();
@@ -497,6 +502,7 @@ sub fill_forward {
     while($count < $FILL_STEP) {
         my $m = $ml->iterate_next;
         unless(defined $m) {
+            BarnOwl::debug("Hit end in fill_forward.");
             $self->{at_end} = 1;
             last;
         }
