@@ -437,7 +437,7 @@ sub consider_message {
     my $msg  = shift;
     return unless $self->at_end;
     if(BarnOwl::filter_message_match($self->get_filter, $msg)) {
-        push @{$self->messages}, $msg;
+        push @{$self->messages}, $msg->{id};
     }
 }
 
@@ -469,10 +469,10 @@ my $FILL_STEP = 100;
 
 sub fill_back {
     my $self = shift;
-    my $pos  = shift || $self->messages->[0] - 1;
+    return if $self->at_start;
+    my $pos  = shift || ($self->messages->[0] - 1);
     BarnOwl::debug("Fill back from $pos...");
     my $ml   = BarnOwl::message_list();
-    return if $self->at_start;
     $ml->iterate_begin($pos, 1);
     my $count = 0;
     while($count < $FILL_STEP) {
@@ -485,18 +485,18 @@ sub fill_back {
         if(BarnOwl::filter_message_match($self->get_filter, $m)) {
             $self->{offset}++;
             $count++;
-            unshift @{$self->messages}, $m
+            unshift @{$self->messages}, $m->{id};
         }
     }
     $ml->iterate_done;
 }
 
 sub fill_forward {
-    BarnOwl::debug("Fill forward...");
     my $self = shift;
-    my $pos  = shift || $self->messages->[-1] + 1;
-    my $ml   = BarnOwl::message_list();
     return if $self->at_end;
+    my $pos  = shift || ($self->messages->[-1] + 1);
+    BarnOwl::debug("Fill forward from $pos...");
+    my $ml   = BarnOwl::message_list();
     $ml->iterate_begin($pos, 0);
     my $count = 0;
     while($count < $FILL_STEP) {
@@ -508,7 +508,7 @@ sub fill_forward {
         }
         if(BarnOwl::filter_message_match($self->get_filter, $m)) {
             $count++;
-            push @{$self->messages}, $m
+            push @{$self->messages}, $m->{id};
         }
     }
     $ml->iterate_done;
@@ -629,7 +629,8 @@ sub next {
 
 sub get_message {
     my $self = shift;
-    return $self->view->messages->[$self->eff_index];
+    BarnOwl::debug("get_message: index=@{[$self->index]}, offset=@{[$self->view->offset]}");
+    return BarnOwl::message_list->get_by_id($self->view->messages->[$self->eff_index]);
 }
 
 sub fill_back {
