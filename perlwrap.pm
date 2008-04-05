@@ -460,8 +460,8 @@ sub recalculate_around {
         $self->{at_end} = 1;
         $self->fill_back(-1);
     } else {
-        $self->fill_back($where);
-        $self->fill_forward;
+        $self->fill_forward($where);
+        $self->fill_back;
     }
 }
 
