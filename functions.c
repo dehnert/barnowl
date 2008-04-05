@@ -2368,7 +2368,7 @@ void owl_function_change_currentview_filter(char *filtname)
   owl_global_set_curmsg(&g, it);
   owl_global_set_topmsg(&g, it);
 
-  owl_function_calculate_topmsg(OWL_DIRECTION_DOWNWARDS);
+  owl_function_calculate_topmsg(OWL_DIRECTION_UPWARDS);
   owl_mainwin_redisplay(owl_global_get_mainwin(&g));
   owl_global_set_direction_downwards(&g);
 }
