@@ -160,13 +160,6 @@ if(!$configfile && -f $ENV{HOME} . "/.barnowlconf") {
 $configfile ||= $ENV{HOME}."/.owlconf";
 
 # populate global variable space for legacy owlconf files
-sub _format_msg_legacy_wrap {
-    my ($m) = @_;
-    $m->legacy_populate_global();
-    return &BarnOwl::format_msg($m);
-}
-
-# populate global variable space for legacy owlconf files
 sub _receive_msg_legacy_wrap {
     my ($m) = @_;
     $m->legacy_populate_global();
@@ -1105,6 +1098,20 @@ our $getBuddyList = BarnOwl::Hook->new;
 
 # Internal startup/shutdown routines called by the C code
 
+sub _load_perl_commands {
+    # Load builtin perl commands
+    BarnOwl::new_command(style => \&BarnOwl::Style::style_command,
+                       {
+                           summary => "creates a new style",
+                           usage   => "style <name> perl <function_name>",
+                           description =>
+                           "A style named <name> will be created that will\n" .
+                           "format messages using the perl function <function_name>.\n\n" .
+                           "SEE ALSO: show styles, view -s, filter -s\n\n" .
+                           "DEPRECATED in favor of BarnOwl::create_style(NAME, OBJECT)",
+                          });
+}
+
 sub _load_owlconf {
     # load the config  file
     if ( -r $BarnOwl::configfile ) {
@@ -1115,10 +1122,12 @@ sub _load_owlconf {
         package BarnOwl;
         if(*BarnOwl::format_msg{CODE}) {
             # if the config defines a legacy formatting function, add 'perl' as a style 
-            BarnOwl::_create_style("perl", "BarnOwl::_format_msg_legacy_wrap",
-                                   "User-defined perl style that calls BarnOwl::format_msg"
-                                   . " with legacy global variable support");
-            BarnOwl::set("-q default_style perl");
+            BarnOwl::create_style("perl", BarnOwl::Style::Legacy->new(
+                "BarnOwl::format_msg",
+                "User-defined perl style that calls BarnOwl::format_msg"
+                . " with legacy global variable support",
+                1));
+             BarnOwl::set("-q default_style perl");
         }
     }
 }
@@ -1133,6 +1142,7 @@ sub _startup {
     }
     @BarnOwl::__startup_errors = ();
     
+    _load_perl_commands();
     _load_owlconf();
 
     if(eval {require BarnOwl::ModuleLoader}) {
@@ -1182,20 +1192,23 @@ package BarnOwl::Style::Default;
 ################################################################################
 sub format_message($)
 {
+    my $self = shift;
     my $m = shift;
 
     if ( $m->is_loginout) {
-        return format_login($m);
+        return $self->format_login($m);
     } elsif($m->is_ping && $m->is_personal) {
-        return ( "\@b(PING) from \@b(" . $m->pretty_sender . ")\n" );
+        return $self->format_ping($m);
     } elsif($m->is_admin) {
-        return "\@bold(OWL ADMIN)\n" . indentBody($m);
+        return $self->format_admin($m);
     } else {
-        return format_chat($m);
+        return $self->format_chat($m);
     }
 }
 
-BarnOwl::_create_style("default", "BarnOwl::Style::Default::format_message", "Default style");
+sub description {"Default style";}
+
+BarnOwl::create_style("default", "BarnOwl::Style::Default");
 
 ################################################################################
 
@@ -1206,6 +1219,7 @@ sub time_hhmm {
 }
 
 sub format_login($) {
+    my $self = shift;
     my $m = shift;
     return sprintf(
         '@b<%s%s> for @b(%s) (%s) %s',
@@ -1217,7 +1231,20 @@ sub format_login($) {
        );
 }
 
+sub format_ping {
+    my $self = shift;
+    my $m = shift;
+    return "\@b(PING) from \@b(" . $m->pretty_sender . ")\n";
+}
+
+sub format_admin {
+    my $self = shift;
+    my $m = shift;
+    return "\@bold(OWL ADMIN)\n" . indentBody($m);
+}
+
 sub format_chat($) {
+    my $self = shift;
     my $m = shift;
     my $header;
     if ( $m->is_personal ) {
@@ -1265,36 +1292,45 @@ sub indentBody($)
     return "    ".$body;
 }
 
+package BarnOwl::Style::Basic;
+
+our @ISA=qw(BarnOwl::Style::Default);
+
+sub description {"Compatability alias for the default style";}
+
+BarnOwl::create_style("basic", "BarnOwl::Style::Basic");
+
 package BarnOwl::Style::OneLine;
 ################################################################################
 # Branching point for various formatting functions in this style.
 ################################################################################
 use constant BASE_FORMAT => '%s %-13.13s %-11.11s %-12.12s ';
 sub format_message($) {
+  my $self = shift;
   my $m = shift;
 
-#  if ( $m->is_zephyr ) {
-#    return format_zephyr($m);
-#  }
   if ( $m->is_loginout ) {
-    return format_login($m);
+    return $self->format_login($m);
   }
   elsif ( $m->is_ping) {
-    return format_ping($m);
+    return $self->format_ping($m);
   }
   elsif ( $m->is_admin || $m->is_loopback) {
-    return format_local($m);
+    return $self->format_local($m);
   }
   else {
-    return format_chat($m);
+    return $self->format_chat($m);
   }
 }
 
-BarnOwl::_create_style("oneline", "BarnOwl::Style::OneLine::format_message", "Formats for one-line-per-message");
+sub description {"Formats for one-line-per-message"}
+
+BarnOwl::create_style("oneline", "BarnOwl::Style::OneLine");
 
 ################################################################################
 
 sub format_login($) {
+  my $self = shift;
   my $m = shift;
   return sprintf(
     BASE_FORMAT,
@@ -1317,6 +1353,7 @@ sub format_ping($) {
 
 sub format_chat($)
 {
+  my $self = shift;
   my $m = shift;
   my $dir = lc($m->{direction});
   my $dirsym = '-';
@@ -1357,6 +1394,7 @@ sub format_chat($)
 # Format locally generated messages
 sub format_local($)
 {
+  my $self = shift;
   my $m = shift;
   my $type = uc($m->{type});
   my $line = sprintf(BASE_FORMAT, '<', $type, '', '');
@@ -1385,6 +1423,51 @@ sub boldify($)
         $txt =~ s/\)/\)\@b\[\)\]\@b\(/g;
         return $txt . ')';
     }
+}
+
+sub style_command {
+    my $command = shift;
+    if(scalar @_ != 3 || $_[1] ne 'perl') {
+        die("Usage: style <name> perl <function>\n");
+    }
+    my $name = shift;
+    my $perl = shift;
+    my $fn   = shift;
+    {
+        no strict 'refs';
+        unless(*{$fn}{CODE}) {
+            die("Unable to create style '$name': no perl function '$fn'\n");
+        }
+    }
+    BarnOwl::create_style($name, BarnOwl::Style::Legacy->new($fn));
+}
+
+package BarnOwl::Style::Legacy;
+
+sub new {
+    my $class = shift;
+    my $func  = shift;
+    my $desc  = shift;
+    my $useglobals = shift;
+    $useglobals = 0 unless defined($useglobals);
+    return bless {function    => $func,
+                  description => $desc,
+                  useglobals  => $useglobals}, $class;
+}
+
+sub description {
+    my $self = shift;
+    return $self->{description} ||
+    ("User-defined perl style that calls " . $self->{function});
+};
+
+sub format_message {
+    my $self = shift;
+    if($self->{useglobals}) {
+        $_[0]->legacy_populate_global();
+    }
+    no strict 'refs';
+    goto \&{$self->{function}};
 }
 
 
