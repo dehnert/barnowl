@@ -442,3 +442,19 @@ void owl_perlconfig_do_dispatch(owl_dispatch *d)
   FREETMPS;
   LEAVE;
 }
+
+void owl_perlconfig_invalidate_filter(owl_filter *f)
+{
+  dSP;
+  ENTER;
+  SAVETMPS;
+
+  PUSHMARK(SP);
+  XPUSHs(sv_2mortal(newSVpv(owl_filter_get_name(f), 0)));
+  PUTBACK;
+
+  call_pv("BarnOwl::Hooks::_invalidate_filter", G_DISCARD|G_KEEPERR|G_EVAL);
+
+  FREETMPS;
+  LEAVE;
+}

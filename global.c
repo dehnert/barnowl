@@ -658,6 +658,11 @@ owl_view *owl_global_get_current_view(owl_global *g) {
   return(g->current_view);
 }
 
+void owl_global_set_current_view(owl_global *g, owl_view *v) {
+  owl_view_free(g->current_view);
+  g->current_view = v;
+}
+
 void owl_global_set_current_style(owl_global *g, owl_style *s) {
   g->current_style = s;
 }

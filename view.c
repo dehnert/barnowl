@@ -4,7 +4,7 @@
 
 static const char fileIdent[] = "$Id$";
 
-owl_view_iterator* owl_view_new(char *name, char *filtname)
+owl_view* owl_view_new(char *name, char *filtname)
 {
   char *args[] = {name, filtname};
   return owl_perl_new_argv("BarnOwl::View", args, 2);
@@ -43,7 +43,7 @@ void owl_view_consider_message(owl_view *v, owl_message *m)
  */
 void owl_view_recalculate(owl_view *v)
 {
-  OWL_PERL_CALL_METHOD(v, "recalculate",
+  OWL_PERL_CALL_METHOD(v, "reset",
                        /* no args */,
                        "Error in recalculate: %s",
                        /* fatal */ 1,
@@ -168,6 +168,7 @@ void owl_view_iterator_init_id(owl_view_iterator *it, owl_view *v, int message_i
                        OWL_PERL_VOID_CALL);
 }
 
+/* Initialized iterator to point at the first message */
 void owl_view_iterator_init_start(owl_view_iterator *it, owl_view *v)
 {
   OWL_PERL_CALL_METHOD(it, "initialize_at_start",
@@ -178,6 +179,7 @@ void owl_view_iterator_init_start(owl_view_iterator *it, owl_view *v)
                        OWL_PERL_VOID_CALL);
 }
 
+/* Initialized iterator to point at the first message */
 void owl_view_iterator_init_end(owl_view_iterator *it, owl_view *v)
 {
   OWL_PERL_CALL_METHOD(it, "initialize_at_end",

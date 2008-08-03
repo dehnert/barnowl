@@ -2262,7 +2262,8 @@ void owl_function_change_currentview_filter(char *filtname)
     return;
   }
 
-  owl_view_new_filter(v, filtname);
+  v = owl_view_new("main", filtname);
+  owl_global_set_current_view(&g, v);
 
   /* Figure out what to set the current message to.
    * - If the view we're leaving has messages in it, go to the closest message
@@ -2359,6 +2360,8 @@ void owl_function_create_filter(int argc, char **argv)
 
   /* add the filter */
   owl_global_add_filter(&g, f);
+
+  owl_perlconfig_invalidate_filter(f);
 
   /* if it was in use by the current view then update */
   if (inuse) {
