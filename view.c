@@ -43,7 +43,7 @@ void owl_view_consider_message(owl_view *v, owl_message *m)
  */
 void owl_view_recalculate(owl_view *v)
 {
-  OWL_PERL_CALL_METHOD(v, "reset",
+  OWL_PERL_CALL_METHOD(v, "reset_all",
                        /* no args */,
                        "Error in recalculate: %s",
                        /* fatal */ 1,
