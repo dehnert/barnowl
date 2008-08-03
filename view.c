@@ -38,18 +38,6 @@ void owl_view_consider_message(owl_view *v, owl_message *m)
                        OWL_PERL_VOID_CALL);
 }
 
-/* remove all messages, add all the global messages that match the
- * filter.
- */
-void owl_view_recalculate(owl_view *v)
-{
-  OWL_PERL_CALL_METHOD(v, "reset_all",
-                       /* no args */,
-                       "Error in recalculate: %s",
-                       /* fatal */ 1,
-                       OWL_PERL_VOID_CALL);
-}
-
 void owl_view_new_filter(owl_view *v, char *filtname)
 {
   OWL_PERL_CALL_METHOD(v, "new_filter",

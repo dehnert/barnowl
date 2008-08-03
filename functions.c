@@ -763,9 +763,6 @@ void owl_function_expunge()
   /* expunge the message list */
   owl_messagelist_expunge(ml);
 
-  /* update all views (we only have one right now) */
-  owl_view_recalculate(v);
-
   /* find where the new position should be
      (as close as possible to where we last where) */
   owl_view_iterator_init_id(it, v, lastmsgid);

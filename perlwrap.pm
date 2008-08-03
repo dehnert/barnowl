@@ -425,6 +425,7 @@ sub expunge {
     for my $message (values %{$self->{messages}}) {
         if($message->is_deleted) {
             delete $self->{messages}->{$message->id};
+            BarnOwl::View->message_deleted($message->id);
         }
     }
 }
@@ -436,8 +437,15 @@ sub close {
 #####################################################################
 #####################################################################
 package BarnOwl::View;
-
 our %view_cache;
+
+sub message_deleted {
+    my $class = shift;
+    my $id = shift;
+    for my $view (values %view_cache) {
+        $view->message($id, 0);
+    }
+}
 
 sub get_name   {shift->{name}};
 sub message {
