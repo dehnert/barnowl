@@ -436,7 +436,127 @@ sub close {
 
 #####################################################################
 #####################################################################
+package BarnOwl::View::RangeList;
+use Scalar::Util qw(weaken);
+use List::Util qw(max min);
+
+sub next_fwd {shift->{next_fwd}};
+sub next_bk  {shift->{next_bk}};
+
+sub next {shift->{next}};
+sub prev {shift->{prev}};
+
+sub new {
+    my $class = shift;
+    my ($bk, $fwd, $prev, $next) = (@_);
+    my $self = {
+        next_bk  => $bk,
+        next_fwd => $fwd,
+        next => $next,
+        prev => $prev
+       };
+    bless($self, $class);
+
+    if(defined($self->prev)) {
+        weaken($self->{prev});
+        $self->prev->{next} = $self;
+    }
+    if(defined($self->next)) {
+        $self->next->{prev} = $self;
+    }
+    return bless($self, $class);
+}
+
+sub expand_fwd {
+    my $self = shift;
+    my $fwd = shift;
+    my $merge = 0;
+    $fwd = $self->{next_fwd} + 1 unless defined $fwd;
+    $self->{next_fwd} = $fwd;
+    while (defined $self->next &&
+           $self->next_fwd > $self->next->next_bk) {
+        BarnOwl::debug("Merge forward at @{[$self->string]} with @{[$self->next->string]}");
+        $merge = 1;
+        $self->{next_fwd} = max($self->next_fwd, $self->next->next_fwd);
+        $self->{next} = $self->next->next;
+        if(defined $self->next) {
+            $self->next->{prev} = $self;
+            weaken($self->next->{prev});
+        }
+    }
+    return $merge;
+}
+
+sub expand_bk {
+    my $self = shift;
+    my $bk = shift;
+    my $merge = 0;
+    $bk = $self->{next_bk} - 1 unless defined $bk;
+    $self->{next_bk} = $bk;
+    while (defined $self->prev &&
+           $self->next_bk < $self->prev->next_fwd) {
+        BarnOwl::debug("Merge back at @{[$self->string]} with @{[$self->prev->string]}");
+        $merge = 1;
+        $self->{next_bk} = min($self->next_bk, $self->prev->next_bk);
+        $self->{prev} = $self->prev->prev;
+        if(defined $self->prev) {
+            $self->prev->{next} = $self;
+        }
+    }
+    return $merge;
+}
+
+sub find_or_insert {
+    my $self = shift;
+    my $idx = shift;
+    my $range = $self;
+    my $last;
+    if($idx < 0) {
+        while(defined($range->next)) {
+            $range = $range->next;
+        }
+        return BarnOwl::View::RangeList->new($idx, undef, $range, undef);
+    }
+    while(defined $range) {
+        if($idx < $range->next_bk) {
+            # We've gone too far, insert a new zero-length range
+            BarnOwl::debug("Insert $idx before @{[$range->string]}");
+            return BarnOwl::View::RangeList->new($idx, $idx + 1,
+                                                 $range->prev,
+                                                 $range);
+        } elsif($idx >= $range->next_bk &&
+                $idx < $range->next_fwd) {
+            return $range;
+        }
+        $last = $range;
+        $range = $range->next;
+    }
+
+    BarnOwl::debug("Insert at end...");
+    return BarnOwl::View::RangeList->new($idx, $idx + 1, $last, undef);
+}
+
+sub string {
+    my $self = shift;
+    my $bk = $self->next_bk;
+    $bk = "undef" unless defined $bk;
+    my $fd = $self->next_fwd;
+    $fd = "undef" unless defined $fd;
+    return "[$bk,$fd]";
+}
+
+sub string_chain {
+    my $range = shift;
+    my $str = "";
+    while(defined($range)) {
+        $str .= $range->string;
+        $range = $range->next;
+    }
+    return $str;
+}
+
 package BarnOwl::View;
+
 our %view_cache;
 
 sub message_deleted {
@@ -459,11 +579,11 @@ sub message {
 };
 sub get_filter {shift->{filter}};
 
-sub next_fwd      {shift->{next_fwd}};
-sub next_bk       {shift->{next_bk}};
 sub at_start      {shift->{at_start}};
 sub at_end        {shift->{at_end}};
 sub is_empty      {shift->{is_empty}};
+sub range         {shift->{range}};
+sub ranges        {shift->{ranges}};
 
 sub new {
     my $class = shift;
@@ -477,7 +597,9 @@ sub new {
     my $self  = {messages  => "",
                  name      => $name,
                  filter    => $filter,
-                 is_empty  => 1};
+                 is_empty  => 1,
+                 range     => undef,
+                 ranges    => undef};
     bless $self, $class;
     $self->reset;
     $view_cache{$filter} = $self;
@@ -500,7 +622,7 @@ sub _consider_message {
         $self->message($msg->{id}, 1);
         $self->{is_empty} = 0;
     }
-    $self->{next_fwd} = $msg->{id} + 1;
+    $self->range->expand_fwd($msg->{id} + 1);
 }
 
 sub reset_all {
@@ -513,40 +635,30 @@ sub reset {
     my $self = shift;
     $self->{messages} = "";
     $self->{at_start} = $self->{at_end} = 0;
-    $self->{next_fwd} = $self->{next_bk} = -1;
+    $self->{is_empty} = 1;
+    $self->{range} = undef;
+    $self->{ranges} = BarnOwl::View::RangeList->new(-1, 0);
 }
 
 sub recalculate_around {
     my $self = shift;
     my $where = shift;
     BarnOwl::debug("recalulate @{[$self->get_filter]} around $where");
+
     if($where == 0) {
-        return if $self->at_start;
         $self->{at_start} = 1;
         $self->{at_end}   = 0;
-        $self->{next_bk}  = -1;
-        $self->{next_fwd} = 0;
     } elsif($where < 0) {
-        return if $self->at_end;
         $self->{at_start} = 0;
         $self->{at_end}   = 1;
-        $self->{next_bk}  = -1;
-        $self->{next_fwd} = undef;
     } else {
-        if(defined($self->next_fwd) &&
-           defined($self->next_bk) &&
-           $self->next_fwd > $where &&
-           $self->next_bk < $where) {
-            BarnOwl::debug("Hit cache for @{[$self->get_filter]}");
-            return;
-        } else {
-            $self->{at_end} = $self->{at_start} = 0;
-            $self->{next_fwd} = $where;
-            $self->{next_bk} = $where - 1;
-        }
+        $self->{at_end} = $self->{at_start} = 0;
     }
-    $self->{is_empty} = 1;
-    $self->{messages} = "";
+
+    $self->{range} = $self->ranges->find_or_insert($where);
+    BarnOwl::debug("[@{[$self->get_filter]}] new range from @{[$self->range->string]}");
+    BarnOwl::debug("[@{[$self->get_filter]}]" . $self->ranges->string_chain);
+
     $self->fill_forward;
     $self->fill_back;
 }
@@ -556,53 +668,76 @@ my $FILL_STEP = 100;
 sub fill_back {
     my $self = shift;
     return if $self->at_start;
-    my $pos  = $self->next_bk;
-    BarnOwl::debug("Fill back from $pos...");
+    my $pos  = $self->range->next_bk;
     my $ml   = BarnOwl::message_list();
-    $ml->iterate_begin($pos, 1);
-    my $count = 0;
     my $m;
-    while($count++ < $FILL_STEP) {
+
+    BarnOwl::debug("Fill back from $pos...");
+
+    $ml->iterate_begin($pos, 1);
+    do {
         $m = $ml->iterate_next;
-        $self->{next_fwd} = $m->{id} + 1 unless defined $self->{next_fwd};
+
+        $self->range->expand_fwd($m->{id} + 1) unless defined $self->range->next_fwd;
+
         unless(defined $m) {
             BarnOwl::debug("Hit start in fill_back.");
             $self->{at_start} = 1;
-            last;
+            goto loop_done;
         }
+
+        $pos = $m->{id} if $pos < 0;
+
         if(BarnOwl::filter_message_match($self->get_filter, $m)) {
             $self->{is_empty} = 0;
             $self->message($m->{id}, 1);
         }
-        $self->{next_bk} = $m->{id} - 1;
-    }
+
+        if($self->range->expand_bk($m->{id} - 1)) {
+            $ml->iterate_done;
+            $ml->iterate_begin($self->range->next_bk, 1);
+        }
+    } while(($pos - $m->{id}) < $FILL_STEP);
+
+loop_done:
     $ml->iterate_done;
+    BarnOwl::debug("[@{[$self->get_filter]}]" . $self->ranges->string_chain);
 }
 
 sub fill_forward {
     my $self = shift;
     return if $self->at_end;
-    my $pos  = $self->next_fwd;
-    BarnOwl::debug("Fill forward from $pos...");
+    my $pos  = $self->range->next_fwd;
     my $ml   = BarnOwl::message_list();
-    $ml->iterate_begin($pos, 0);
-    my $count = 0;
     my $m;
-    while($count++ < $FILL_STEP) {
+
+    BarnOwl::debug("Fill forward from $pos...");
+
+    $ml->iterate_begin($pos, 0);
+    do {
         $m = $ml->iterate_next;
         unless(defined $m) {
             BarnOwl::debug("Hit end in fill_forward.");
             $self->{at_end} = 1;
-            last;
+            goto loop_done;
         }
+
+        $pos = $m->{id} if $pos < 0;
+
         if(BarnOwl::filter_message_match($self->get_filter, $m)) {
             $self->{is_empty} = 0;
             $self->message($m->{id}, 1);
         }
-        $self->{next_fwd} = $m->{id} + 1;
-    }
+        
+        if($self->range->expand_fwd($m->{id} + 1)) {
+            $ml->iterate_done;
+            $ml->iterate_begin($self->range->next_fwd);
+        }
+    } while(($m->{id} - $pos) < $FILL_STEP);
+
+loop_done:
     $ml->iterate_done;
-    BarnOwl::debug("After fill, at @{[$self->next_fwd]}: " . unpack("b*", $self->{messages}));
+    BarnOwl::debug("[@{[$self->get_filter]}]" . $self->ranges->string_chain);
 }
 
 sub invalidate_filter {
@@ -612,7 +747,6 @@ sub invalidate_filter {
 
 #####################################################################
 #####################################################################
-
 package BarnOwl::View::Iterator;
 
 sub view {return shift->{view}}
@@ -652,7 +786,7 @@ sub initialize_at_end {
     my $view = shift;
     $self->{view}  = $view;
     $view->recalculate_around(-1);
-    $self->{index} = $view->next_fwd;
+    $self->{index} = $view->range->next_fwd;
     $self->{at_start} = $self->{at_end} = 0;
     $self->prev;
     BarnOwl::debug("Initialize at end");
@@ -719,10 +853,10 @@ sub valid {
 sub prev {
     my $self = shift;
     return if $self->at_start;
-    $self->{index} = $self->view->next_fwd if $self->at_end;
+    $self->{index} = $self->view->range->next_fwd if $self->at_end;
     do {
         $self->{index}--;
-        if($self->{index} == $self->view->next_bk) {
+        if($self->{index} == $self->view->range->next_bk) {
             $self->view->fill_back;
         }
     } while(!$self->view->message($self->index)
@@ -740,15 +874,14 @@ sub prev {
 sub next {
     my $self = shift;
     return if $self->at_end;
-    BarnOwl::debug("NEXT: next_fwd=@{[$self->view->next_fwd]}");
     do {
         $self->{index}++;
-        if($self->index == $self->view->next_fwd) {
+        if($self->index == $self->view->range->next_fwd) {
             BarnOwl::debug("Forward: fill, id=@{[$self->index]}");
             $self->view->fill_forward;
         }
     } while(!$self->view->message($self->index)
-            && $self->index < $self->view->next_fwd);
+            && $self->index < $self->view->range->next_fwd);
 
     BarnOwl::debug("NEXT newid=@{[$self->index]}");
 
