@@ -625,12 +625,6 @@ sub _consider_message {
     $self->range->expand_fwd($msg->{id} + 1);
 }
 
-sub reset_all {
-    my $self = shift;
-    $self->reset;
-    %view_cache = ();
-}
-
 sub reset {
     my $self = shift;
     $self->{messages} = "";
