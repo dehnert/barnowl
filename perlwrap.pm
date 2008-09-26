@@ -398,10 +398,14 @@ sub iterate_begin {
 
 sub iterate_next {
     my $self = shift;
-    if($self->{iterator} >= scalar @{$self->{keys}}) {
+    if($self->{iterator} >= scalar @{$self->{keys}}
+       || $self->{iterator} < 0) {
         return undef;
     }
-    return $self->get_by_id($self->{keys}->[$self->{iterator}++]);
+
+    my $msg = $self->get_by_id($self->{keys}->[$self->{iterator}]);
+    $self->{iterator} += $self->{iterate_direction};
+    return $msg;
 }
 
 sub iterate_done {
