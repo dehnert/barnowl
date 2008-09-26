@@ -20,6 +20,20 @@ owl_message *owl_message_new() {
   return (owl_message*)owl_perl_new("BarnOwl::Message");
 }
 
+void owl_message_lock(owl_message *m)
+{
+  HV * hash = (HV*)SvRV((SV*)m);
+  SV *val;
+  HE *ent;
+  hv_iterinit(hash);
+  while((ent = hv_iternext(hash)) != NULL) {
+    val = hv_iterval(hash, ent);
+    SvREADONLY_on(val);
+  }
+
+  hv_store(hash, "__fmtext", strlen("__fmtext"), &PL_sv_undef, 0);
+}
+
 void owl_message_init(owl_message *m)
 {
 }
@@ -643,6 +657,8 @@ void owl_message_create_aim(owl_message *m, char *sender, char *recipient, char 
   } else if (loginout==1) {
     owl_message_set_islogin(m);
   }
+
+  owl_message_lock(m);
 }
 
 void owl_message_create_admin(owl_message *m, char *header, char *text)
@@ -651,6 +667,8 @@ void owl_message_create_admin(owl_message *m, char *header, char *text)
   owl_message_set_type_admin(m);
   owl_message_set_body(m, text);
   owl_message_set_attribute(m, "adminheader", header); /* just a hack for now */
+
+  owl_message_lock(m);
 }
 
 /* caller should set the direction */
@@ -662,6 +680,8 @@ void owl_message_create_loopback(owl_message *m, char *text)
   owl_message_set_sender(m, "loopsender");
   owl_message_set_recipient(m, "looprecip");
   owl_message_set_isprivate(m);
+
+  owl_message_lock(m);
 }
 
 #ifdef HAVE_LIBZEPHYR
@@ -778,7 +798,9 @@ void owl_message_create_from_znotice(owl_message *m, ZNotice_t *n)
       owl_free(out);
     }
   }
-#endif  
+#endif
+
+  owl_message_lock(m);
 }
 
 int owl_message_get_num_fields(owl_message *m)
@@ -850,6 +872,8 @@ void owl_message_create_pseudo_zlogin(owl_message *m, int direction, char *user,
   owl_function_debugmsg("create_pseudo_login: host is %s", host ? host : "");
   owl_message_set_hostname(m, host ? host : "");
   owl_free(longuser);
+
+  owl_message_lock(m);
 }
 
 void owl_message_create_from_zwriteline(owl_message *m, char *line, char *body, char *zsig)
@@ -894,6 +918,7 @@ void owl_message_create_from_zwriteline(owl_message *m, char *line, char *body, 
   }
 
   owl_zwrite_free(&z);
+  owl_message_lock(m);
 }
 
 void owl_message_pretty_zsig(owl_message *m, char *buff)
