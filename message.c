@@ -22,16 +22,8 @@ owl_message *owl_message_new() {
 
 void owl_message_lock(owl_message *m)
 {
-  HV * hash = (HV*)SvRV((SV*)m);
-  SV *val;
-  HE *ent;
-  hv_iterinit(hash);
-  while((ent = hv_iternext(hash)) != NULL) {
-    val = hv_iterval(hash, ent);
-    SvREADONLY_on(val);
-  }
-
-  hv_store(hash, "__fmtext", strlen("__fmtext"), &PL_sv_undef, 0);
+  char *rv = owl_perlconfig_message_call_method(m, "lock_message", 0, NULL);
+  if(rv) owl_free(rv);
 }
 
 void owl_message_init(owl_message *m)
@@ -455,7 +447,11 @@ void owl_message_set_zwriteline(owl_message *m, char *line)
 int owl_message_is_delete(owl_message *m)
 {
   if (m == NULL) return(0);
-  return owl_message_get_attribute_int(m, "deleted");
+  char *str = owl_perlconfig_message_call_method(m, "is_deleted", 0, NULL);
+  if(!str) return 0;
+  int deleted = atoi(str);
+  owl_free(str);
+  return deleted;
 }
 
 void owl_message_set_hostname(owl_message *m, char *hostname)

@@ -909,7 +909,7 @@ sub new {
     my $timestr = ctime($time);
     $timestr =~ s/\n$//;
     my %args = (
-        deleted   => 0,
+        __meta    => {deleted => 0},
         time      => $timestr,
         _time     => $time,
         login     => 'none',
@@ -929,6 +929,15 @@ sub new {
     return bless {%args}, $class;
 }
 
+sub lock_message {
+    my $self = shift;
+    for my $k (keys %$self) {
+        if($k !~ /^_/ || $k eq '_time') {
+            Internals::SvREADONLY $self->{$k}, 1;
+        }
+    }
+}
+
 sub __set_attribute {
     my $self = shift;
     my $attr = shift;
@@ -938,7 +947,7 @@ sub __set_attribute {
 
 sub __format_attributes {
     my $self = shift;
-    my %skip = map {$_ => 1} qw(_time fields id deleted __fmtext type);
+    my %skip = map {$_ => 1} qw(_time fields id __meta __fmtext type);
     my $text = "";
     my @keys = sort keys %$self;
     for my $k (@keys) {
@@ -948,6 +957,19 @@ sub __format_attributes {
         }
     }
     return $text;
+}
+
+sub set_meta {
+    my $self = shift;
+    my $key = shift;
+    my $val = shift;
+    $self->{__meta}{$key} = $val;
+}
+
+sub get_meta {
+    my $self = shift;
+    my $key  = shift;
+    return $self->{__meta}{$key};
 }
 
 sub type        { return shift->{"type"}; }
@@ -966,7 +988,7 @@ sub is_loginout { my $m=shift; return ($m->is_login or $m->is_logout); }
 sub is_incoming { return (shift->{"direction"} eq "in"); }
 sub is_outgoing { return (shift->{"direction"} eq "out"); }
 
-sub is_deleted  { return shift->{"deleted"}; }
+sub is_deleted  { return shift->get_meta("deleted"); }
 
 sub is_admin    { return (shift->{"type"} eq "admin"); }
 sub is_generic  { return (shift->{"type"} eq "generic"); }
@@ -1007,13 +1029,13 @@ sub pretty_recipient { return shift->recipient; }
 
 sub delete {
     my $self = shift;
-    $self->{deleted} = 1;
+    $self->set_meta(deleted => 1);
     BarnOwl::message_list()->set_attribute($self => deleted => 1);
 }
 
 sub undelete {
     my $self = shift;
-    $self->{deleted} = 0;
+    $self->set_meta(deleted => 0);
     BarnOwl::message_list()->set_attribute($self => deleted => 0);
 }
 
