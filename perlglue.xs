@@ -186,6 +186,7 @@ void queue_message(msg)
 		}
 
 		m = owl_perlconfig_hashref2message(msg);
+		owl_message_lock(m);
 
 		owl_global_messagequeue_addmsg(&g, m);
 	}
