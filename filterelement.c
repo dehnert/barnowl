@@ -5,6 +5,10 @@ static const char fileIdent[] = "$Id$";
 static char * owl_filterelement_get_field(owl_message *m, char * field)
 {
   char *match;
+  if (!strncmp(field, "meta:", 5)) {
+    return owl_message_get_meta(m, field+5);
+  }
+
   if (!strcasecmp(field, "class")) {
     match=owl_message_get_class(m);
   } else if (!strcasecmp(field, "instance")) {

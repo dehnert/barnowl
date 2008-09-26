@@ -71,6 +71,20 @@ char *owl_message_get_attribute_value(owl_message *m, char *attrname)
   return SvPV_nolen(attr);
 }
 
+char *owl_message_get_meta(owl_message *m, char *attr)
+{
+  char *argv[] = {attr};
+  char *perlrv;
+  char *str;
+  perlrv = owl_perlconfig_message_call_method(m, "get_meta", 1, argv);
+  if(!perlrv) {
+    return "";
+  }
+  str = SvPV_nolen(sv_2mortal(newSVpv(perlrv, 0)));
+  owl_free(perlrv);
+  return str;
+}
+
 char *owl_message_get_attribute_value_nonull(owl_message *m, char *attrname)
 {
   char *att = owl_message_get_attribute_value(m, attrname);
