@@ -67,6 +67,11 @@ command line, and C<MESSAGE> is the zephyr body to send.
 
 Strips zephyr formatting from a string and returns the result
 
+=head2 zephyr_getsubs
+
+Returns the list of subscription triples <class,instance,recipient>,
+separated by newlines.
+
 =head2 queue_message MESSAGE
 
 Enqueue a message in the BarnOwl message list, logging it and
@@ -135,6 +140,14 @@ read from C<FD>.
 =head2 remove_dispatch FD
 
 Remove a file descriptor previously registered via C<add_dispatch>
+
+=head2 create_style NAME OBJECT
+
+Creates a new barnowl style with the given NAME defined by the given
+object. The object must have a C<description> method which returns a
+string description of the style, and a and C<format_message> method
+which accepts a C<BarnOwl::Message> object and returns a string that
+is the result of formatting the message for display.
 
 =cut
 
@@ -292,6 +305,26 @@ sub _new_variable {
         default     => $default_default,
         %{$args});
     $func->($name, $args{default}, $args{summary}, $args{description});
+}
+
+=head2 quote STRING
+
+Return a version of STRING fully quoted to survive processing by
+BarnOwl's command parser.
+
+=cut
+
+sub quote {
+    my $str = shift;
+    return "''" if $str eq '';
+    if ($str !~ /['" ]/) {
+        return "$str";
+    }
+    if ($str !~ /'/) {
+        return "'$str'";
+    }
+    $str =~ s/"/"'"'"/g;
+    return '"' . $str . '"';
 }
 
 #####################################################################
@@ -760,6 +793,12 @@ sub zwriteline  { return undef; }
 sub login_host  { return undef; }
 sub login_tty   { return undef; }
 
+# This is for back-compat with old messages that set these properties
+# New protocol implementations are encourages to user override these
+# methods.
+sub replycmd         { return shift->{replycmd}};
+sub replysendercmd   { return shift->{replysendercmd}};
+
 sub pretty_sender    { return shift->sender; }
 sub pretty_recipient { return shift->recipient; }
 
@@ -868,6 +907,9 @@ sub is_private {
   return 1;
 }
 
+sub replycmd {return 'loopwrite';}
+sub replysendercmd {return 'loopwrite';}
+
 #####################################################################
 #####################################################################
 
@@ -880,12 +922,36 @@ sub is_private {
     return !(shift->is_loginout);
 }
 
+sub replycmd {
+    my $self = shift;
+    if ($self->is_incoming) {
+        return "aimwrite " . BarnOwl::quote($self->sender);
+    } else {
+        return "aimwrite " . BarnOwl::quote($self->recipient);
+    }
+}
+
+sub replysendercmd {
+    return shift->replycmd;
+}
+
 #####################################################################
 #####################################################################
 
 package BarnOwl::Message::Zephyr;
 
+use constant WEBZEPHYR_PRINCIPAL => "daemon.webzephyr";
+use constant WEBZEPHYR_CLASS     => "webzephyr";
+use constant WEBZEPHYR_OPCODE    => "webzephyr";
+
 use base qw( BarnOwl::Message );
+
+sub strip_realm {
+    my $sender = shift;
+    my $realm = BarnOwl::zephyr_getrealm();
+    $sender =~ s/\@$realm$//;
+    return $sender;
+}
 
 sub login_type {
     return (shift->zsig eq "") ? "(PSEUDO)" : "";
@@ -942,18 +1008,12 @@ sub is_mail {
 
 sub pretty_sender {
     my ($m) = @_;
-    my $sender = $m->sender;
-    my $realm = BarnOwl::zephyr_getrealm();
-    $sender =~ s/\@$realm$//;
-    return $sender;
+    return strip_realm($m->sender);
 }
 
 sub pretty_recipient {
     my ($m) = @_;
-    my $recip = $m->recipient;
-    my $realm = BarnOwl::zephyr_getrealm();
-    $recip =~ s/\@$realm$//;
-    return $recip;
+    return strip_realm($m->recipient);
 }
 
 # These are arguably zephyr-specific
@@ -968,9 +1028,85 @@ sub auth        { return shift->{"auth"}; }
 sub fields      { return shift->{"fields"}; }
 sub zsig        { return shift->{"zsig"}; }
 
+sub zephyr_cc {
+    my $self = shift;
+    return $1 if $self->body =~ /^\s*cc:\s+([^\n]+)/i;
+    return undef;
+}
+
+sub replycmd {
+    my $self = shift;
+    my $sender = shift;
+    $sender = 0 unless defined $sender;
+    my ($class, $instance, $to, $cc);
+    if($self->is_outgoing) {
+        return $self->{zwriteline};
+    }
+
+    if($sender && $self->opcode eq WEBZEPHYR_OPCODE) {
+        $class = WEBZEPHYR_CLASS;
+        $instance = $self->sender;
+        $to = WEBZEPHYR_PRINCIPAL;
+    } elsif($self->class eq WEBZEPHYR_CLASS
+            && $self->is_loginout) {
+        $class = WEBZEPHYR_CLASS;
+        $instance = $self->instance;
+        $to = WEBZEPHYR_PRINCIPAL;
+    } elsif($self->is_loginout || $sender) {
+        $class = 'MESSAGE';
+        $instance = 'PERSONAL';
+        $to = $self->sender;
+    } else {
+        $class = $self->class;
+        $instance = $self->instance;
+        $to = $self->recipient;
+        $cc = $self->zephyr_cc();
+        if($to eq '*' || $to eq '') {
+            $to = '';
+        } elsif($to !~ /^@/) {
+            $to = $self->sender;
+        }
+    }
+
+    my $cmd;
+    if(lc $self->opcode eq 'crypt') {
+        $cmd = 'zcrypt';
+    } else {
+        $cmd = 'zwrite';
+    }
+
+    if (lc $class ne 'message') {
+        $cmd .= " -c " . BarnOwl::quote($self->class);
+    }
+    if (lc $instance ne 'personal') {
+        $cmd .= " -i " . BarnOwl::quote($self->instance);
+    }
+    if ($to ne '') {
+        $to = strip_realm($to);
+        if (defined $cc) {
+            my @cc = grep /^[^-]/, ($to, split /\s+/, $cc);
+            my %cc = map {$_ => 1} @cc;
+            delete $cc{strip_realm(BarnOwl::zephyr_getsender())};
+            @cc = keys %cc;
+            $cmd .= " -C " . join(" ", @cc);
+        } else {
+            if(BarnOwl::getvar('smartstrip') eq 'on') {
+                $to = BarnOwl::zephyr_smartstrip_user($to);
+            }
+            $cmd .= " $to";
+        }
+    }
+    return $cmd;
+}
+
+sub replysendercmd {
+    my $self = shift;
+    return $self->replycmd(1);
+}
+
 #####################################################################
 #####################################################################
-################################################################################
+#####################################################################
 
 package BarnOwl::Hook;
 
@@ -1003,7 +1139,15 @@ arguments.
 sub run {
     my $self = shift;
     my @args = @_;
-    return map {$_->(@args)} @$self;
+    return map {$self->_run($_,@args)} @$self;
+}
+
+sub _run {
+    my $self = shift;
+    my $fn = shift;
+    my @args = @_;
+    no strict 'refs';
+    return $fn->(@args);
 }
 
 =head2 add SUBREF
@@ -1015,7 +1159,8 @@ Registers a given subroutine with this hook
 sub add {
     my $self = shift;
     my $func = shift;
-    die("Not a coderef!") unless ref($func) eq 'CODE';
+    die("Not a coderef!") unless ref($func) eq 'CODE' || !ref($func);
+    return if grep {$_ eq $func} @$self;
     push @$self, $func;
 }
 
@@ -1085,14 +1230,15 @@ displayed in a popup window, with zephyr formatting parsed.
 use Exporter;
 
 our @EXPORT_OK = qw($startup $shutdown
-                    $receiveMessage $mainLoop
-                    $getBuddyList);
+                    $receiveMessage $newMessage
+                    $mainLoop $getBuddyList);
 
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 
 our $startup = BarnOwl::Hook->new;
 our $shutdown = BarnOwl::Hook->new;
 our $receiveMessage = BarnOwl::Hook->new;
+our $newMessage = BarnOwl::Hook->new;
 our $mainLoop = BarnOwl::Hook->new;
 our $getBuddyList = BarnOwl::Hook->new;
 
@@ -1118,7 +1264,10 @@ sub _load_owlconf {
         undef $@;
         package main;
         do $BarnOwl::configfile;
-        die $@ if $@;
+        if($@) {
+            BarnOwl::error("In startup: $@\n");
+            return;
+        }
         package BarnOwl;
         if(*BarnOwl::format_msg{CODE}) {
             # if the config defines a legacy formatting function, add 'perl' as a style 
@@ -1174,6 +1323,14 @@ sub _receive_msg {
     BarnOwl::receive_msg($m) if *BarnOwl::receive_msg{CODE};
 }
 
+sub _new_msg {
+    my $m = shift;
+
+    $newMessage->run($m);
+    
+    BarnOwl::new_msg($m) if *BarnOwl::new_msg{CODE};
+}
+
 sub _mainloop_hook {
     $mainLoop->run;
     BarnOwl::mainloop_hook() if *BarnOwl::mainloop_hook{CODE};
@@ -1190,20 +1347,29 @@ package BarnOwl::Style::Default;
 ################################################################################
 # Branching point for various formatting functions in this style.
 ################################################################################
-sub format_message($)
+sub format_message
 {
     my $self = shift;
-    my $m = shift;
+    my $m    = shift;
+    my $fmt;
 
     if ( $m->is_loginout) {
-        return $self->format_login($m);
+        $fmt = $self->format_login($m);
     } elsif($m->is_ping && $m->is_personal) {
-        return $self->format_ping($m);
+        $fmt = $self->format_ping($m);
     } elsif($m->is_admin) {
-        return $self->format_admin($m);
+        $fmt = $self->format_admin($m);
     } else {
-        return $self->format_chat($m);
+        $fmt = $self->format_chat($m);
     }
+    $fmt = BarnOwl::Style::boldify($fmt) if $self->should_bold($m);
+    return $fmt;
+}
+
+sub should_bold {
+    my $self = shift;
+    my $m = shift;
+    return $m->is_personal && $m->direction eq "in";
 }
 
 sub description {"Default style";}
@@ -1212,13 +1378,14 @@ BarnOwl::create_style("default", "BarnOwl::Style::Default");
 
 ################################################################################
 
-sub time_hhmm {
+sub format_time {
+    my $self = shift;
     my $m = shift;
     my ($time) = $m->time =~ /(\d\d:\d\d)/;
     return $time;
 }
 
-sub format_login($) {
+sub format_login {
     my $self = shift;
     my $m = shift;
     return sprintf(
@@ -1227,23 +1394,30 @@ sub format_login($) {
         $m->login_type,
         $m->pretty_sender,
         $m->login_extra,
-        time_hhmm($m)
+        $self->format_time($m)
        );
 }
 
 sub format_ping {
     my $self = shift;
     my $m = shift;
-    return "\@b(PING) from \@b(" . $m->pretty_sender . ")\n";
+    return "\@b(PING) from \@b(" . $m->pretty_sender . ")";
 }
 
 sub format_admin {
     my $self = shift;
     my $m = shift;
-    return "\@bold(OWL ADMIN)\n" . indentBody($m);
+    return "\@bold(OWL ADMIN)\n" . $self->indent_body($m);
 }
 
-sub format_chat($) {
+sub format_chat {
+    my $self = shift;
+    my $m = shift;
+    my $header = $self->chat_header($m);
+    return $header . "\n". $self->indent_body($m);
+}
+
+sub chat_header {
     my $self = shift;
     my $m = shift;
     my $header;
@@ -1264,20 +1438,22 @@ sub format_chat($) {
     if($m->opcode) {
         $header .= " [" . $m->opcode . "]";
     }
-    $header .= "  " . time_hhmm($m);
-    my $sender = $m->long_sender;
-    $sender =~ s/\n.*$//s;
-    $header .= " " x (4 - ((length $header) % 4));
-    $header .= "(" . $sender . '@color[default]' . ")";
-    my $message = $header . "\n". indentBody($m);
-    if($m->is_personal && $m->direction eq "in") {
-        $message = BarnOwl::Style::boldify($message);
-    }
-    return $message;
+    $header .= "  " . $self->format_time($m);
+    $header .= $self->format_sender($m);
+    return $header;
 }
 
-sub indentBody($)
+sub format_sender {
+    my $self = shift;
+    my $m = shift;
+    my $sender = $m->long_sender;
+    $sender =~ s/\n.*$//s;
+    return "  (" . $sender . '@color[default]' . ")";
+}
+
+sub indent_body
 {
+    my $self = shift;
     my $m = shift;
 
     my $body = $m->body;
@@ -1293,7 +1469,6 @@ sub indentBody($)
 }
 
 package BarnOwl::Style::Basic;
-
 our @ISA=qw(BarnOwl::Style::Default);
 
 sub description {"Compatability alias for the default style";}
@@ -1301,27 +1476,10 @@ sub description {"Compatability alias for the default style";}
 BarnOwl::create_style("basic", "BarnOwl::Style::Basic");
 
 package BarnOwl::Style::OneLine;
-################################################################################
-# Branching point for various formatting functions in this style.
-################################################################################
-use constant BASE_FORMAT => '%s %-13.13s %-11.11s %-12.12s ';
-sub format_message($) {
-  my $self = shift;
-  my $m = shift;
+# Inherit format_message to dispatch
+our @ISA = qw(BarnOwl::Style::Default);
 
-  if ( $m->is_loginout ) {
-    return $self->format_login($m);
-  }
-  elsif ( $m->is_ping) {
-    return $self->format_ping($m);
-  }
-  elsif ( $m->is_admin || $m->is_loopback) {
-    return $self->format_local($m);
-  }
-  else {
-    return $self->format_chat($m);
-  }
-}
+use constant BASE_FORMAT => '%s %-13.13s %-11.11s %-12.12s ';
 
 sub description {"Formats for one-line-per-message"}
 
@@ -1329,7 +1487,7 @@ BarnOwl::create_style("oneline", "BarnOwl::Style::OneLine");
 
 ################################################################################
 
-sub format_login($) {
+sub format_login {
   my $self = shift;
   my $m = shift;
   return sprintf(
@@ -1341,7 +1499,8 @@ sub format_login($) {
     . ($m->login_extra ? "at ".$m->login_extra : '');
 }
 
-sub format_ping($) {
+sub format_ping {
+  my $self = shift;
   my $m = shift;
   return sprintf(
     BASE_FORMAT,
@@ -1351,7 +1510,7 @@ sub format_ping($) {
     $m->pretty_sender)
 }
 
-sub format_chat($)
+sub format_chat
 {
   my $self = shift;
   my $m = shift;
@@ -1367,37 +1526,35 @@ sub format_chat($)
   my $line;
   if ($m->is_personal) {
     $line= sprintf(BASE_FORMAT,
-		   $dirsym,
-		   $m->type,
-		   '',
-		   ($dir eq 'out'
-		      ? $m->pretty_recipient
-		      : $m->pretty_sender));
+                   $dirsym,
+                   $m->type,
+                   '',
+                   ($dir eq 'out'
+                    ? $m->pretty_recipient
+                    : $m->pretty_sender));
   }
   else {
     $line = sprintf(BASE_FORMAT,
-		    $dirsym,
-		    $m->context,
-		    $m->subcontext,
-		    ($dir eq 'out'
-		       ? $m->pretty_recipient
-		       : $m->pretty_sender));
+                    $dirsym,
+                    $m->context,
+                    $m->subcontext,
+                    ($dir eq 'out'
+                     ? $m->pretty_recipient
+                     : $m->pretty_sender));
   }
 
   my $body = $m->{body};
   $body =~ tr/\n/ /;
   $line .= $body;
-  $line = BarnOwl::Style::boldify($line) if ($m->is_personal && lc($m->direction) eq 'in');
   return $line;
 }
 
-# Format locally generated messages
-sub format_local($)
+# Format owl admin messages
+sub format_admin
 {
   my $self = shift;
   my $m = shift;
-  my $type = uc($m->{type});
-  my $line = sprintf(BASE_FORMAT, '<', $type, '', '');
+  my $line = sprintf(BASE_FORMAT, '<', 'ADMIN', '', '');
   my $body = $m->{body};
   $body =~ tr/\n/ /;
   return $line.$body;
@@ -1407,7 +1564,7 @@ package BarnOwl::Style;
 
 # This takes a zephyr to be displayed and modifies it to be displayed
 # entirely in bold.
-sub boldify($)
+sub boldify
 {
     local $_ = shift;
     if ( !(/\)/) ) {
@@ -1434,6 +1591,9 @@ sub style_command {
     my $perl = shift;
     my $fn   = shift;
     {
+        # For historical reasons, assume unqualified references are
+        # in main::
+        package main;
         no strict 'refs';
         unless(*{$fn}{CODE}) {
             die("Unable to create style '$name': no perl function '$fn'\n");
@@ -1466,8 +1626,11 @@ sub format_message {
     if($self->{useglobals}) {
         $_[0]->legacy_populate_global();
     }
-    no strict 'refs';
-    goto \&{$self->{function}};
+    {
+      package main;
+      no strict 'refs';
+      goto \&{$self->{function}};
+    }
 }
 
 

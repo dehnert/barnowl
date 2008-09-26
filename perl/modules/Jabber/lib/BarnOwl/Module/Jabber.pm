@@ -26,6 +26,8 @@ use Net::DNS;
 use Getopt::Long;
 Getopt::Long::Configure(qw(no_getopt_compat prefix_pattern=-|--));
 
+use utf8;
+
 our $VERSION = 0.1;
 
 BEGIN {
@@ -65,12 +67,15 @@ sub onStart {
         register_owl_commands();
         register_keybindings();
         register_filters();
-        $BarnOwl::Hooks::mainLoop->add(\&onMainLoop);
-        $BarnOwl::Hooks::getBuddyList->add(\&onGetBuddyList);
+        $BarnOwl::Hooks::mainLoop->add("BarnOwl::Module::Jabber::onMainLoop");
+        $BarnOwl::Hooks::getBuddyList->add("BarnOwl::Module::Jabber::onGetBuddyList");
         $vars{show} = '';
 	BarnOwl::new_variable_bool("jabber:show_offline_buddies",
 				   { default => 1,
 				     summary => 'Show offline or pending buddies.'});
+	BarnOwl::new_variable_bool("jabber:spew",
+				   { default => 0,
+				     summary => 'Display unrecognized Jabber messages.'});
 	BarnOwl::new_variable_int("jabber:auto_away_timeout",
 				  { default => 5,
 				    summary => 'After minutes idle, auto away.',
@@ -86,7 +91,7 @@ sub onStart {
     }
 }
 
-$BarnOwl::Hooks::startup->add(\&onStart);
+$BarnOwl::Hooks::startup->add("BarnOwl::Module::Jabber::onStart");
 
 sub onMainLoop {
     return if ( !$conn->connected() );
@@ -226,6 +231,13 @@ sub register_owl_commands() {
         {
             summary => "Send a Jabber Message",
             usage   => "jwrite JID [-t thread] [-s subject]"
+        }
+    );
+    BarnOwl::new_command(
+        jaway => \&cmd_jaway,
+        {
+            summary => "Set Jabber away / presence information",
+            usage   => "jaway [-s online|dnd|...] [<message>]"
         }
     );
     BarnOwl::new_command(
@@ -377,7 +389,7 @@ sub do_login {
                 if ( !$vars{jlogin_havepass} && ( !@result || $result[0] eq '401' || $result[0] eq 'error') ) {
                     $vars{jlogin_havepass} = 1;
                     $conn->removeConnection($jidStr);
-                    BarnOwl::start_password( "Password for $jidStr: ", \&do_login );
+                    BarnOwl::start_password("Password for $jidStr: ", \&do_login );
                     return "";
                 }
                 $conn->removeConnection($jidStr);
@@ -486,7 +498,7 @@ sub cmd_jwrite {
         return;
     }
     else {
-        $to = shift @ARGV;
+      $to = shift @ARGV;
     }
 
     my @candidates = guess_jwrite($from, $to);
@@ -530,7 +542,8 @@ sub cmd_jwrite {
     my $cmd = "jwrite $jwrite_to -a $jwrite_from";
     $cmd .= " -t $jwrite_thread" if $jwrite_thread;
     $cmd .= " -s $jwrite_subject" if $jwrite_subject;
-    BarnOwl::start_edit_win( $cmd, \&process_owl_jwrite );
+
+    BarnOwl::start_edit_win($cmd, \&process_owl_jwrite );
 }
 
 sub cmd_jmuc {
@@ -750,6 +763,33 @@ sub cmd_jroster {
     }
 }
 
+sub cmd_jaway {
+    my $cmd = shift;
+    local @ARGV = @_;
+    my $getopt = Getopt::Long::Parser->new;
+    my ($jid, $show);
+    my $p = new Net::Jabber::Presence;
+
+    $getopt->configure('pass_through', 'no_getopt_compat');
+    $getopt->getoptions(
+        'account=s' => \$jid,
+        'show=s'    => \$show
+    );
+    $jid ||= defaultJID();
+    if ($jid) {
+        $jid = resolveConnectedJID($jid);
+        return unless $jid;
+    }
+    else {
+        BarnOwl::error('You must specify an account with -a {jid}');
+    }
+
+    $p->SetShow($show eq "online" ? "" : $show) if $show;
+    $p->SetStatus(join(' ', @ARGV)) if @ARGV;
+    $conn->getConnectionFromJID($jid)->Send($p);
+}
+
+
 sub jroster_sub {
     my $jid = shift;
     my $name = shift;
@@ -926,8 +966,10 @@ sub process_owl_jwrite {
 
 sub process_incoming_chat_message {
     my ( $sid, $j ) = @_;
-    BarnOwl::queue_message( j2o( $j, { direction => 'in',
-                                   sid => $sid } ) );
+    if ($j->DefinedBody()) {
+        BarnOwl::queue_message( j2o( $j, { direction => 'in',
+                                           sid => $sid } ) );
+    }
 }
 
 sub process_incoming_error_message {
@@ -970,7 +1012,9 @@ sub process_incoming_normal_message {
     #	}
     #    }
     #
-    BarnOwl::queue_message( BarnOwl::Message->new(%jhash) );
+    if(BarnOwl::getvar('jabber:spew') eq 'on') {
+        BarnOwl::queue_message( BarnOwl::Message->new(%jhash) );
+    }
 }
 
 sub process_muc_presence {
@@ -981,12 +1025,12 @@ sub process_muc_presence {
 
 sub process_presence_available {
     my ( $sid, $p ) = @_;
-    my $from = $p->GetFrom();
+    my $from = $p->GetFrom('jid')->GetJID('base');
     my $to = $p->GetTo();
     my $type = $p->GetType();
     my %props = (
         to => $to,
-        from => $from,
+        from => $p->GetFrom(),
         recipient => $to,
         sender => $from,
         type => 'jabber',
@@ -1004,10 +1048,7 @@ sub process_presence_available {
         $props{body} = "$from is now offline. ";
         $props{login} = 'logout';
     }
-    $props{replysendercmd} = $props{replycmd} = "jwrite $from -i $sid";
-    if(BarnOwl::getvar('debug') eq 'on') {
-        BarnOwl::queue_message(BarnOwl::Message->new(%props));
-    }
+    BarnOwl::queue_message(BarnOwl::Message->new(%props));
 }
 
 sub process_presence_subscribe {
@@ -1090,15 +1131,11 @@ sub process_presence_error {
 
 sub j2hash {
     my $j   = shift;
-    my %initProps = %{ shift() };
+    my %props = (type => 'jabber',
+                 dir  => 'none',
+                 %{$_[0]});
 
-    my $dir = 'none';
-    my %props = ( type => 'jabber' );
-
-    foreach my $k (keys %initProps) {
-        $dir = $initProps{$k} if ($k eq 'direction');
-        $props{$k} = $initProps{$k};
-    }
+    my $dir = $props{direction};
 
     my $jtype = $props{jtype} = $j->GetType();
     my $from = $j->GetFrom('jid');
@@ -1117,10 +1154,6 @@ sub j2hash {
     $props{xml}        = $j->GetXML();
 
     if ( $jtype eq 'chat' ) {
-        $props{replycmd} =
-          "jwrite " . ( ( $dir eq 'in' ) ? $props{from} : $props{to} );
-        $props{replycmd} .=
-          " -a " . ( ( $dir eq 'out' ) ? $props{from} : $props{to} );
         $props{private} = 1;
 
         my $connection;
@@ -1143,19 +1176,6 @@ sub j2hash {
     elsif ( $jtype eq 'groupchat' ) {
         my $nick = $props{nick} = $from->GetResource();
         my $room = $props{room} = $from->GetJID('base');
-        $props{replycmd} = "jwrite $room";
-        $props{replycmd} .=
-          " -a " . ( ( $dir eq 'out' ) ? $props{from} : $props{to} );
-	if ($props{subject}) {
-	  $props{replycmd} .= " -s " . $props{subject}
-	}
-
-        if ($dir eq 'out') {
-            $props{replysendercmd} = "jwrite ".$props{to}." -a ".$props{from};
-        }
-        else {
-            $props{replysendercmd} = "jwrite ".$props{from}." -a ".$props{to};
-        }
 
         $props{sender} = $nick || $room;
         $props{recipient} = $room;
@@ -1166,14 +1186,11 @@ sub j2hash {
         }
     }
     elsif ( $jtype eq 'normal' ) {
-        $props{replycmd}  = "";
         $props{private} = 1;
     }
     elsif ( $jtype eq 'headline' ) {
-        $props{replycmd} = "";
     }
     elsif ( $jtype eq 'error' ) {
-        $props{replycmd} = "";
         $props{body}     = "Error "
           . $props{error_code}
           . " sending to "
@@ -1181,7 +1198,6 @@ sub j2hash {
           . $props{error};
     }
 
-    $props{replysendercmd} = $props{replycmd} unless $props{replysendercmd};
     return %props;
 }
 

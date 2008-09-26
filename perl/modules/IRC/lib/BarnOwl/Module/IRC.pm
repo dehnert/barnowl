@@ -113,11 +113,14 @@ sub register_commands {
     BarnOwl::new_command('irc-names'      => \&cmd_names);
     BarnOwl::new_command('irc-whois'      => \&cmd_whois);
     BarnOwl::new_command('irc-motd'       => \&cmd_motd);
+    BarnOwl::new_command('irc-list'       => \&cmd_list);
+    BarnOwl::new_command('irc-who'        => \&cmd_who);
+    BarnOwl::new_command('irc-stats'      => \&cmd_stats);
+    BarnOwl::new_command('irc-topic'      => \&cmd_topic);
 }
 
-$BarnOwl::Hooks::startup->add(\&startup);
-$BarnOwl::Hooks::shutdown->add(\&shutdown);
-#$BarnOwl::Hooks::mainLoop->add(\&mainloop_hook);
+$BarnOwl::Hooks::startup->add('BarnOwl::Module::IRC::startup');
+$BarnOwl::Hooks::shutdown->add('BarnOwl::Module::IRC::shutdown');
 
 ################################################################################
 ######################## Owl command handlers ##################################
@@ -145,14 +148,14 @@ sub cmd_connect {
         );
         $host = shift @ARGV or die("Usage: $cmd HOST\n");
         if(!$alias) {
-            if($host =~ /^(?:irc[.])?(\w+)[.]\w+$/) {
+            if($host =~ /^(?:irc[.])?([\w-]+)[.]\w+$/) {
                 $alias = $1;
             } else {
                 $alias = $host;
             }
         }
-        $port = shift @ARGV || 6667;
         $ssl ||= 0;
+        $port = shift @ARGV || ($ssl ? 6697 : 6667);
     }
 
     if(exists $ircnets{$alias}) {
@@ -258,6 +261,7 @@ sub cmd_names {
     my $cmd = shift;
     my $conn = get_connection(\@_);
     my $chan = get_channel(\@_) || die("Usage: $cmd <channel>\n");
+    $conn->names_tmp([]);
     $conn->conn->names($chan);
 }
 
@@ -272,6 +276,35 @@ sub cmd_motd {
     my $cmd = shift;
     my $conn = get_connection(\@_);
     $conn->conn->motd;
+}
+
+sub cmd_list {
+    my $cmd = shift;
+    my $message = BarnOwl::Style::boldify('Current IRC networks:') . "\n";
+    while (my ($alias, $conn) = each %ircnets) {
+        $message .= '  ' . $alias . ' => ' . $conn->nick . '@' . $conn->server . "\n";
+    }
+    BarnOwl::popless_ztext($message);
+}
+
+sub cmd_who {
+    my $cmd = shift;
+    my $conn = get_connection(\@_);
+    my $who = shift || die("Usage: $cmd <user>\n");
+    $conn->conn->who($who);
+}
+
+sub cmd_stats {
+    my $cmd = shift;
+    my $conn = get_connection(\@_);
+    my $type = shift || die("Usage: $cmd <chiklmouy> [server] \n");
+    $conn->conn->stats($type, @_);
+}
+
+sub cmd_topic {
+    my $cmd = shift;
+    my $conn = get_connection(\@_);
+    $conn->conn->topic(@_);
 }
 
 ################################################################################

@@ -1,40 +1,9 @@
-/*  Copyright (c) 2004 James Kretchmar. All rights reserved.
+/*  Copyright (c) 2006-2008 The BarnOwl Developers. All rights reserved.
+ *  Copyright (c) 2004 James Kretchmar. All rights reserved.
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
- *  
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *  
- *    * Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in
- *      the documentation and/or other materials provided with the
- *      distribution.
- *  
- *    * Redistributions in any form must be accompanied by information on
- *      how to obtain complete source code for the Owl software and any
- *      accompanying software that uses the Owl software. The source code
- *      must either be included in the distribution or be available for no
- *      more than the cost of distribution plus a nominal fee, and must be
- *      freely redistributable under reasonable conditions. For an
- *      executable file, complete source code means the source code for
- *      all modules it contains. It does not include source code for
- *      modules or files that typically accompany the major components of
- *      the operating system on which the executable file runs.
- *  
- * 
- *  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- *  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *  WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR
- *  NON-INFRINGEMENT, ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE
- *  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- *  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- *  OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  This program is free software. You can redistribute it and/or
+ *  modify under the terms of the Sleepycat License. See the COPYING
+ *  file included with the distribution for more information.
  */
 
 #include <stdio.h>
@@ -48,6 +17,7 @@
 #include <sys/time.h>
 #include <termios.h>
 #include <sys/stat.h>
+#include <locale.h>
 #include "owl.h"
 
 #if OWL_STDERR_REDIR
@@ -59,6 +29,8 @@
 #endif
 int stderr_replace(void);
 #endif
+
+#define STDIN 0
 
 static const char fileIdent[] = "$Id$";
 
@@ -84,6 +56,9 @@ int main(int argc, char **argv, char **env)
 #if OWL_STDERR_REDIR
   int newstderr;
 #endif
+  
+  if (!GLIB_CHECK_VERSION (2, 12, 0))
+    g_error ("GLib version 2.12.0 or above is needed.");
 
   argcsave=argc;
   argvsave=argv;
@@ -92,6 +67,9 @@ int main(int argc, char **argv, char **env)
   tty=NULL;
   debug=0;
   initialsubs=1;
+
+  setlocale(LC_ALL, "");
+  
   if (argc>0) {
     argv++;
     argc--;
@@ -141,7 +119,7 @@ int main(int argc, char **argv, char **env)
       printf("This is barnowl version %s\n", OWL_VERSION_STRING);
       exit(0);
     } else {
-      fprintf(stderr, "Uknown argument\n");
+      fprintf(stderr, "Unknown argument\n");
       usage();	      
       exit(1);
     }
@@ -209,7 +187,7 @@ int main(int argc, char **argv, char **env)
   /* prepare stdin dispatch */
   {
     owl_dispatch *d = owl_malloc(sizeof(owl_dispatch));
-    d->fd = fileno(stdin);
+    d->fd = STDIN;
     d->cfunc = &owl_process_input;
     d->pfunc = NULL;
     owl_select_add_dispatch(d);
@@ -344,18 +322,18 @@ int main(int argc, char **argv, char **env)
 
   /* welcome message */
   if(owl_messagelist_get_size(owl_global_get_msglist(&g)) == 0) {
-    owl_function_debugmsg("startup: creating splash message");
-    strcpy(startupmsg, "-----------------------------------------------------------------------\n");
-    sprintf(buff,      "Welcome to barnowl version %s.  Press 'h' for on-line help.            \n", OWL_VERSION_STRING);
-    strcat(startupmsg, buff);
-    strcat(startupmsg, "                                                                       \n");
-    strcat(startupmsg, "This is a development build of barnowl. If you are using this          \n");
-    strcat(startupmsg, "build regularly, please add yourself to barnowl-users@mit.edu          \n");
-    strcat(startupmsg, "                                                                 ^ ^   \n");
-    strcat(startupmsg, "                                                                 OvO   \n");
-    strcat(startupmsg, "Please report any bugs to dirty-owl-hackers@mit.edu             (   )  \n");
-    strcat(startupmsg, "-----------------------------------------------------------------m-m---\n");
-    owl_function_adminmsg("", startupmsg);
+      owl_function_debugmsg("startup: creating splash message");
+      strcpy(startupmsg, "-----------------------------------------------------------------------\n");
+      sprintf(buff,      "Welcome to barnowl version %s.  Press 'h' for on-line help.            \n", OWL_VERSION_STRING);
+      strcat(startupmsg, buff);
+      strcat(startupmsg, "                                                                       \n");
+      strcat(startupmsg, "BarnOwl is free software. Type ':show license' for more                \n");
+      strcat(startupmsg, "information.                                                           \n");
+      strcat(startupmsg, "                                                                 ^ ^   \n");
+      strcat(startupmsg, "                                                                 OvO   \n");
+      strcat(startupmsg, "Please report any bugs or suggestions to bug-barnowl@mit.edu    (   )  \n");
+      strcat(startupmsg, "-----------------------------------------------------------------m-m---\n");
+      owl_function_adminmsg("", startupmsg);
   }
 
   sepbar(NULL);
@@ -528,14 +506,9 @@ int main(int argc, char **argv, char **env)
       } else {
 	owl_function_set_cursor(sepwin);
       }
-      owl_function_debugmsg("owl.c -- doupdate()");
       doupdate();
       owl_global_set_noneedrefresh(&g);
     }
-
-    /* Handle all keypresses.  If no key has been pressed, sleep for a
-     * little bit, but otherwise do not.  This lets input be grabbed
-     * as quickly as possbile */
 
     /* select on FDs we know about. */
     owl_select();
@@ -640,18 +613,10 @@ int owl_process_message(owl_message *m) {
         owl_function_error("Internal error: received login notice that is neither login nor logout");
       }
     }
-
-    /* check for burning ears message */
-    /* this is an unsupported feature */
-    if (owl_global_is_burningears(&g) && owl_message_is_burningears(m)) {
-      char *buff;
-      buff = owl_sprintf("@i(Burning ears message on class %s)", owl_message_get_class(m));
-      owl_function_adminmsg(buff, "");
-      owl_free(buff);
-      owl_function_beep();
-    }
   }
 
+  /* let perl know about it */
+  owl_perlconfig_newmsg(m, NULL);
   /* log the message if we need to */
   owl_log_message(m);
 
@@ -674,18 +639,67 @@ void owl_process_aim()
 
 void owl_process_input()
 {
-  int ret, j;
+  int ret;
+  owl_input j;
   owl_popwin *pw;
   owl_editwin *tw;
+  WINDOW *typwin;
 
+  typwin = owl_global_get_curs_typwin(&g);
   while (1) {
-    j = wgetch(owl_global_get_curs_typwin(&g));
-    if (j == ERR) return;
-
+    j.ch = wgetch(typwin);
+    if (j.ch == ERR) return;
+    
     owl_global_set_lastinputtime(&g, time(NULL));
     pw=owl_global_get_popwin(&g);
     tw=owl_global_get_typwin(&g);
+
+    j.uch = '\0';
+    if (j.ch >= KEY_MIN && j.ch <= KEY_MAX) {
+      /* This is a curses control character. */
+    }
+    else if (j.ch > 0x7f && j.ch < 0xfe) {
+      /* Pull in a full utf-8 character. */
+      int bytes, i;
+      char utf8buf[7];
+      memset(utf8buf, '\0', 7);
+      
+      utf8buf[0] = j.ch;
+      
+      if ((j.ch & 0xc0) && (~j.ch & 0x20)) bytes = 2;
+      else if ((j.ch & 0xe0) && (~j.ch & 0x10)) bytes = 3;
+      else if ((j.ch & 0xf0) && (~j.ch & 0x08)) bytes = 4;
+      else if ((j.ch & 0xf8) && (~j.ch & 0x04)) bytes = 5;
+      else if ((j.ch & 0xfc) && (~j.ch & 0x02)) bytes = 6;
+      else bytes = 1;
+      
+      for (i = 1; i < bytes; i++) {
+        int tmp =  wgetch(typwin);
+        /* If what we got was not a byte, or not a continuation byte */
+        if (tmp > 0xff || !(tmp & 0x80 && ~tmp & 0x40)) {
+          /* ill-formed UTF-8 code unit subsequence, put back the
+             char we just got. */
+          ungetch(tmp);
+          j.ch = ERR;
+          break;
+        }
+        utf8buf[i] = tmp;
+      }
+      
+      if (j.ch != ERR) {
+        if (g_utf8_validate(utf8buf, -1, NULL)) {
+          j.uch = g_utf8_get_char(utf8buf);
+        }
+        else {
+          j.ch = ERR;
+        }
+      }
+    }
+    else if (j.ch <= 0x7f) {
+      j.uch = j.ch;
+    }
     
+    owl_global_set_lastinputtime(&g, time(NULL));
     /* find and activate the current keymap.
      * TODO: this should really get fixed by activating
      * keymaps as we switch between windows... 
@@ -695,13 +709,13 @@ void owl_process_input()
                               owl_global_get_viewwin(&g));
       owl_function_activate_keymap("popless");
     } else if (owl_global_is_typwin_active(&g) 
-               && owl_editwin_get_style(tw) == OWL_EDITWIN_STYLE_ONELINE) {
+               && owl_editwin_get_style(tw)==OWL_EDITWIN_STYLE_ONELINE) {
       /*
         owl_context_set_editline(owl_global_get_context(&g), tw);
         owl_function_activate_keymap("editline");
       */
     } else if (owl_global_is_typwin_active(&g) 
-               && owl_editwin_get_style(tw) == OWL_EDITWIN_STYLE_MULTILINE) {
+               && owl_editwin_get_style(tw)==OWL_EDITWIN_STYLE_MULTILINE) {
       owl_context_set_editmulti(owl_global_get_context(&g), tw);
       owl_function_activate_keymap("editmulti");
     } else {
@@ -710,7 +724,7 @@ void owl_process_input()
     }
     /* now actually handle the keypress */
     ret = owl_keyhandler_process(owl_global_get_keyhandler(&g), j);
-    if (ret != 0 && ret != 1) {
+    if (ret!=0 && ret!=1) {
       owl_function_makemsg("Unable to handle keypress");
     }
   }

@@ -1,40 +1,9 @@
-/*  Copyright (c) 2004 James Kretchmar. All rights reserved.
+/*  Copyright (c) 2006-2008 The BarnOwl Developers. All rights reserved.
+ *  Copyright (c) 2004 James Kretchmar. All rights reserved.
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
- *  
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *  
- *    * Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in
- *      the documentation and/or other materials provided with the
- *      distribution.
- *  
- *    * Redistributions in any form must be accompanied by information on
- *      how to obtain complete source code for the Owl software and any
- *      accompanying software that uses the Owl software. The source code
- *      must either be included in the distribution or be available for no
- *      more than the cost of distribution plus a nominal fee, and must be
- *      freely redistributable under reasonable conditions. For an
- *      executable file, complete source code means the source code for
- *      all modules it contains. It does not include source code for
- *      modules or files that typically accompany the major components of
- *      the operating system on which the executable file runs.
- *  
- * 
- *  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- *  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *  WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR
- *  NON-INFRINGEMENT, ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE
- *  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- *  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- *  OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  This program is free software. You can redistribute it and/or
+ *  modify under the terms of the Sleepycat License. See the COPYING
+ *  file included with the distribution for more information.
  */
 
 #ifndef INC_OWL_H
@@ -50,8 +19,10 @@
 #include <time.h>
 #include <signal.h>
 #include <termios.h>
-#include <libfaim/aim.h>
+#include "libfaim/aim.h"
+#include <wchar.h>
 #include "config.h"
+#include "glib.h"
 #ifdef HAVE_LIBZEPHYR
 #include <zephyr/zephyr.h>
 #endif
@@ -83,8 +54,9 @@ static const char owl_h_fileIdent[] = "$Id$";
 #define OWL_SVN_REVNO ????
 #endif
 
-#define OWL_VERSION_STRING "r" BARNOWL_STRINGIFY(OWL_SVN_REVNO)
-
+#ifndef OWL_VERSION_STRING
+#define OWL_VERSION_STRING "1.0.2.1"
+#endif
 
 /* Feature that is being tested to redirect stderr through a pipe. 
  * There may still be some portability problems with this. */
@@ -101,6 +73,23 @@ static const char owl_h_fileIdent[] = "$Id$";
 #define OWL_FMTEXT_ATTR_REVERSE   2
 #define OWL_FMTEXT_ATTR_UNDERLINE 4
 
+#define OWL_FMTEXT_UC_BASE 0x100000 /* Unicode Plane 16 - Supplementary Private Use Area-B*/
+#define OWL_FMTEXT_UC_ATTR ( OWL_FMTEXT_UC_BASE | 0x800 )
+#define OWL_FMTEXT_UC_ATTR_MASK 0x7
+#define OWL_FMTEXT_UC_COLOR_BASE ( OWL_FMTEXT_UC_BASE | 0x400 )
+#define OWL_FMTEXT_UC_FGCOLOR OWL_FMTEXT_UC_COLOR_BASE
+#define OWL_FMTEXT_UC_BGCOLOR ( OWL_FMTEXT_UC_COLOR_BASE | 0x200 )
+#define OWL_FMTEXT_UC_DEFAULT_COLOR 0x100
+#define OWL_FMTEXT_UC_FGDEFAULT ( OWL_FMTEXT_UC_FGCOLOR | OWL_FMTEXT_UC_DEFAULT_COLOR )
+#define OWL_FMTEXT_UC_BGDEFAULT ( OWL_FMTEXT_UC_BGCOLOR | OWL_FMTEXT_UC_DEFAULT_COLOR )
+#define OWL_FMTEXT_UC_COLOR_MASK 0xFF
+#define OWL_FMTEXT_UC_ALLCOLOR_MASK ( OWL_FMTEXT_UC_COLOR_MASK | OWL_FMTEXT_UC_DEFAULT_COLOR | 0x200)
+#define OWL_FMTEXT_UC_STARTBYTE_UTF8 '\xf4'
+
+#define OWL_FMTEXT_UTF8_ATTR_NONE "\xf4\x80\xa0\x80"
+#define OWL_FMTEXT_UTF8_FGDEFAULT "\xf4\x80\x94\x80"
+#define OWL_FMTEXT_UTF8_BGDEFAULT "\xf4\x80\x9C\x80"
+
 #define OWL_COLOR_BLACK     0
 #define OWL_COLOR_RED       1
 #define OWL_COLOR_GREEN     2
@@ -110,6 +99,7 @@ static const char owl_h_fileIdent[] = "$Id$";
 #define OWL_COLOR_CYAN      6
 #define OWL_COLOR_WHITE     7
 #define OWL_COLOR_DEFAULT   -1
+#define OWL_COLOR_INVALID   -2
 
 #define OWL_EDITWIN_STYLE_MULTILINE 0
 #define OWL_EDITWIN_STYLE_ONELINE   1
@@ -209,10 +199,7 @@ static const char owl_h_fileIdent[] = "$Id$";
 #define OWL_ENABLE_ZCRYPT 1
 #endif
 
-#define OWL_ITERATE_FORWARD     0
-#define OWL_ITERATE_REVERSE     1
-
-#define OWL_META(key) ((key)|0200)
+#define OWL_META(key) ((key)|010000)
 /* OWL_CTRL is definied in kepress.c */
 
 #define LINE 2048
@@ -252,13 +239,18 @@ typedef struct _owl_variable {
 				/* frees val as needed */
 } owl_variable;
 
+typedef struct _owl_input {
+  int ch;
+  gunichar uch;
+} owl_input;
+
 typedef struct _owl_fmtext {
   int textlen;
   int bufflen;
   char *textbuff;
-  char *fmbuff;
-  short *fgcolorbuff;
-  short *bgcolorbuff;
+  char default_attrs;
+  short default_fgcolor;
+  short default_bgcolor;
 } owl_fmtext;
 
 typedef struct _owl_list {
@@ -394,7 +386,7 @@ typedef struct _owl_regex {
 typedef struct _owl_filterelement {
   int (*match_message)(struct _owl_filterelement *fe, owl_message *m);
   /* Append a string representation of the filterelement onto buf*/
-  void (*print_elt)(struct _owl_filterelement *fe, char * buf);
+  void (*print_elt)(struct _owl_filterelement *fe, GString *buf);
   /* Operands for and,or,not*/
   struct _owl_filterelement *left, *right;
   /* For regex filters*/
@@ -482,9 +474,9 @@ typedef struct _owl_keymap {
   char     *desc;		/* description */
   owl_list  bindings;		/* key bindings */
   struct _owl_keymap *submap;	/* submap */
-  void (*default_fn)(int j);	/* default action (takes a keypress) */
-  void (*prealways_fn)(int j);	/* always called before a keypress is received */
-  void (*postalways_fn)(int j);	/* always called after keypress is processed */
+  void (*default_fn)(owl_input j);	/* default action (takes a keypress) */
+  void (*prealways_fn)(owl_input  j);	/* always called before a keypress is received */
+  void (*postalways_fn)(owl_input  j);	/* always called after keypress is processed */
 } owl_keymap;
 
 typedef struct _owl_keyhandler {
@@ -594,6 +586,7 @@ typedef struct _owl_global {
   int aim_loggedin;         /* true if currently logged into AIM */
   int aim_doprocessing;     /* true if we should process AIM events (like pending login) */
   char *aim_screenname;     /* currently logged in AIM screen name */
+  char *aim_screenname_for_filters;     /* currently logged in AIM screen name */
   owl_buddylist buddylist;  /* list of logged in AIM buddies */
   owl_list messagequeue;    /* for queueing up aim and other messages */
   owl_dict styledict;       /* global dictionary of available styles */

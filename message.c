@@ -527,30 +527,6 @@ int owl_message_is_ping(owl_message *m)
   return(0);
 }
 
-int owl_message_is_burningears(owl_message *m)
-{
-  /* we should add a global to cache the short zsender */
-  char sender[LINE], *ptr;
-
-  /* if the message is from us or to us, it doesn't count */
-  if (owl_message_is_from_me(m) || owl_message_is_private(m)) return(0);
-
-  if (owl_message_is_type_zephyr(m)) {
-    strcpy(sender, owl_zephyr_get_sender());
-    ptr=strchr(sender, '@');
-    if (ptr) *ptr='\0';
-  } else if (owl_message_is_type_aim(m)) {
-    strcpy(sender, owl_global_get_aim_screenname(&g));
-  } else {
-    return(0);
-  }
-
-  if (stristr(owl_message_get_body(m), sender)) {
-    return(1);
-  }
-  return(0);
-}
-
 /* caller must free return value. */
 char *owl_message_get_cc(owl_message *m)
 {
@@ -1050,10 +1026,6 @@ void owl_message_curs_waddstr(owl_message *m, WINDOW *win, int aline, int bline,
     owl_fmtext_colorizebg(&b, bgcolor);
   }
 
-  if (owl_global_is_search_active(&g)) {
-    owl_fmtext_search_and_highlight(&b, owl_global_get_search_string(&g));
-  }
-      
   owl_fmtext_curs_waddstr(&b, win);
 
   owl_fmtext_free(&a);

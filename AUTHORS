@@ -1,0 +1,42 @@
+BarnOwl was primarily written by Nelson Elhage and Alejandro Sedeno at
+the Massachusetts Institute of Technology.
+
+The following people have provided patches or other contributions:
+  Sam Hartman
+  Alex Vandiver
+  Geoffrey Thomas
+  Derrick Brashear
+  David Glasser
+  Matthew Goldstein
+  Arun Tharuvai
+  Kevin Chen
+  Eric Price
+
+BarnOwl is based on code from Owl, which was originally primarly
+written by James Kretchmar.  Erik Nygren also made substantial
+contributions and improvemnts to the program.
+
+The following people provided patches and other techincal support for
+Owl:
+
+  Stephen Gildea
+  Greg Hudson
+  David Resnick
+  Marc Horowitz
+  Jeremy Daniel
+  Roman Mitz
+  Derrick J Brashear
+  David Glasser
+  Mark Eichin
+
+Mark Eichin is also maintaining the debian package of Owl.
+
+The following people helped with beta testing the earliest versions of
+Owl:
+
+  Andy Ellis, Erin Panttaja, Gisele Proulx
+  Ron Hoffmann, Jag Patel, Tara Holm
+  Heather Wakefield, Emiliy Havens,
+  Matt Braun, Jeff Schiller
+
+The ASCII art owl was created by Anne LaVin.

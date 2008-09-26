@@ -94,6 +94,7 @@ void owl_global_init(owl_global *g) {
   owl_popwin_init(&(g->pw));
 
   g->aim_screenname=NULL;
+  g->aim_screenname_for_filters=NULL;
   g->aim_loggedin=0;
   owl_timer_create_countdown(&(g->aim_noop_timer), 30);
   owl_timer_create_countdown(&(g->aim_ignorelogin_timer), 0);
@@ -320,10 +321,18 @@ int owl_global_is_typwin_active(owl_global *g) {
 }
 
 void owl_global_set_typwin_active(owl_global *g) {
+  int d = owl_global_get_typewindelta(g);
+  if (d > 0)
+      owl_function_resize_typwin(owl_global_get_typwin_lines(g) + d);
+
   g->typwinactive=1;
 }
 
 void owl_global_set_typwin_inactive(owl_global *g) {
+  int d = owl_global_get_typewindelta(g);
+  if (d > 0)
+      owl_function_resize_typwin(owl_global_get_typwin_lines(g) - d);
+
   g->typwinactive=0;
 }
 
@@ -568,7 +577,7 @@ void owl_global_set_startupargs(owl_global *g, int argc, char **argv) {
   for (i=0; i<argc; i++) {
     len+=strlen(argv[i])+5;
   }
-  g->startupargs=malloc(len+5);
+  g->startupargs=owl_malloc(len+5);
 
   strcpy(g->startupargs, "");
   for (i=0; i<argc; i++) {
@@ -773,11 +782,25 @@ char *owl_global_get_aim_screenname(owl_global *g)
   return("");
 }
 
+char *owl_global_get_aim_screenname_for_filters(owl_global *g)
+{
+  if (owl_global_is_aimloggedin(g)) {
+    return (g->aim_screenname_for_filters);
+  }
+  return("");
+}
+
 void owl_global_set_aimloggedin(owl_global *g, char *screenname)
 {
+  char *sn_escaped, *quote;
   g->aim_loggedin=1;
   if (g->aim_screenname) owl_free(g->aim_screenname);
+  if (g->aim_screenname_for_filters) owl_free(g->aim_screenname_for_filters);
   g->aim_screenname=owl_strdup(screenname);
+  sn_escaped = owl_text_quote(screenname, OWL_REGEX_QUOTECHARS, OWL_REGEX_QUOTEWITH);
+  quote = owl_getquoting(sn_escaped);
+  g->aim_screenname_for_filters=owl_sprintf("%s%s%s", quote, sn_escaped, quote);
+  owl_free(sn_escaped);
 }
 
 void owl_global_set_aimnologgedin(owl_global *g)

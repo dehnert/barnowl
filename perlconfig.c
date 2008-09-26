@@ -276,6 +276,17 @@ void owl_perlconfig_getmsg(owl_message *m, char *subname)
   if (ptr) owl_free(ptr);
 }
 
+/* Called on all new messages; receivemsg is only called on incoming ones */
+void owl_perlconfig_newmsg(owl_message *m, char *subname)
+{
+  char *ptr = NULL;
+  if (owl_perlconfig_is_function("BarnOwl::Hooks::_new_msg")) {
+    ptr = owl_perlconfig_call_with_message(subname?subname
+                                           :"BarnOwl::Hooks::_new_msg", m);
+  }
+  if (ptr) owl_free(ptr);
+}
+
 char *owl_perlconfig_perlcmd(owl_cmd *cmd, int argc, char **argv)
 {
   int i, count;
@@ -289,7 +300,9 @@ char *owl_perlconfig_perlcmd(owl_cmd *cmd, int argc, char **argv)
 
   PUSHMARK(SP);
   for(i=0;i<argc;i++) {
-    XPUSHs(sv_2mortal(newSVpv(argv[i], 0)));
+    SV *tmp = newSVpv(argv[i], 0);
+    SvUTF8_on(tmp);
+    XPUSHs(sv_2mortal(tmp));
   }
   PUTBACK;
 
@@ -328,18 +341,21 @@ void owl_perlconfig_dispatch_free(owl_dispatch *d)
 void owl_perlconfig_edit_callback(owl_editwin *e)
 {
   SV *cb = (SV*)(e->cbdata);
+  SV *text;
   unsigned int n_a;
   dSP;
 
   if(cb == NULL) {
     owl_function_error("Perl callback is NULL!");
   }
+  text = newSVpv(owl_editwin_get_text(e), 0);
+  SvUTF8_on(text);
 
   ENTER;
   SAVETMPS;
 
   PUSHMARK(SP);
-  XPUSHs(sv_2mortal(newSVpv(owl_editwin_get_text(e), 0)));
+  XPUSHs(sv_2mortal(text));
   PUTBACK;
   
   call_sv(cb, G_DISCARD|G_EVAL);

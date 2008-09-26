@@ -16,7 +16,17 @@ int owl_zephyr_initialize()
 {
 #ifdef HAVE_LIBZEPHYR
   int ret;
-  
+  ZNotice_t notice;
+
+  /* Stat the zhm manually, with a shorter timeout */
+  if ((ret = ZOpenPort(NULL)) != ZERR_NONE)
+    return(ret);
+
+  if ((ret = owl_zhm_stat(&notice)) != ZERR_NONE)
+    return(ret);
+
+  ZClosePort();
+
   if ((ret = ZInitialize()) != ZERR_NONE) {
     com_err("owl",ret,"while initializing");
     return(1);
@@ -28,6 +38,65 @@ int owl_zephyr_initialize()
 #endif
   return(0);
 }
+
+#ifdef HAVE_LIBZEPHYR
+#define HM_SVC_FALLBACK		htons((unsigned short) 2104)
+
+/*
+ * Code modified from libzephyr's ZhmStat.c
+ *
+ * Modified to only wait one second to time out if there is no
+ * hostmanager present, rather than a rather excessive 10 seconds.
+ */
+Code_t owl_zhm_stat(ZNotice_t *notice) {
+  struct servent *sp;
+  struct sockaddr_in sin;
+  ZNotice_t req;
+  Code_t code;
+  struct timeval tv;
+  fd_set readers;
+
+  (void) memset((char *)&sin, 0, sizeof(struct sockaddr_in));
+
+  sp = getservbyname(HM_SVCNAME, "udp");
+
+  sin.sin_port = (sp) ? sp->s_port : HM_SVC_FALLBACK;
+  sin.sin_family = AF_INET;
+
+  sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+  (void) memset((char *)&req, 0, sizeof(req));
+  req.z_kind = STAT;
+  req.z_port = 0;
+  req.z_class = HM_STAT_CLASS;
+  req.z_class_inst = HM_STAT_CLIENT;
+  req.z_opcode = HM_GIMMESTATS;
+  req.z_sender = "";
+  req.z_recipient = "";
+  req.z_default_format = "";
+  req.z_message_len = 0;
+	
+  if ((code = ZSetDestAddr(&sin)) != ZERR_NONE)
+    return(code);
+
+  if ((code = ZSendNotice(&req, ZNOAUTH)) != ZERR_NONE)
+    return(code);
+
+  /* Wait up to 1 second for a response. */
+  FD_ZERO(&readers);
+  FD_SET(ZGetFD(), &readers);
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+  code = select(ZGetFD() + 1, &readers, NULL, NULL, &tv);
+  if (code < 0 && errno != EINTR)
+    return(errno);
+  if (code == 0 || (code < 0 && errno == EINTR) || ZPending() == 0)
+    return(ZERR_HMDEAD);
+
+  return(ZReceiveNotice(notice, (struct sockaddr_in *) 0));
+}
+
+#endif
 
 int owl_zephyr_shutdown()
 {
@@ -352,10 +421,48 @@ char *owl_zephyr_get_field(ZNotice_t *n, int j)
 
   return(owl_strdup(""));
 }
+
+char *owl_zephyr_get_field_as_utf8(ZNotice_t *n, int j)
+{
+  int i, count, save;
+
+  /* If there's no message here, just run along now */
+  if (n->z_message_len == 0)
+    return(owl_strdup(""));
+
+  count=save=0;
+  for (i = 0; i < n->z_message_len; i++) {
+    if (n->z_message[i]=='\0') {
+      count++;
+      if (count == j) {
+	/* just found the end of the field we're looking for */
+	return(owl_validate_or_convert(n->z_message + save));
+      } else {
+	save = i + 1;
+      }
+    }
+  }
+  /* catch the last field, which might not be null terminated */
+  if (count == j - 1) {
+    char *tmp, *out;
+    tmp = owl_malloc(n->z_message_len-save+5);
+    memcpy(tmp, n->z_message+save, n->z_message_len-save);
+    tmp[n->z_message_len-save]='\0';
+    out = owl_validate_or_convert(tmp);
+    owl_free(tmp);
+    return out;
+  }
+
+  return(owl_strdup(""));
+}
 #else
 char *owl_zephyr_get_field(void *n, int j)
 {
   return(owl_strdup(""));
+}
+char *owl_zephyr_get_field_as_utf8(void *n, int j)
+{
+  return owl_zephyr_get_field(n, j);
 }
 #endif
 
@@ -698,7 +805,7 @@ void owl_zephyr_zlocate(char *user, char *out, int auth)
 
   if (numlocs==0) {
     myuser=short_zuser(user);
-    sprintf(out, "%s: Hidden or not logged-in\n", myuser);
+    sprintf(out, "%s: Hidden or not logged in\n", myuser);
     owl_free(myuser);
     return;
   }
@@ -900,34 +1007,50 @@ char *owl_zephyr_getsubs()
 {
 #ifdef HAVE_LIBZEPHYR
   int ret, num, i, one;
+  int buffsize;
   ZSubscription_t sub;
-  char *out, *tmpbuff;
+  char *out;
   one=1;
 
   ret=ZRetrieveSubscriptions(0, &num);
   if (ret==ZERR_TOOMANYSUBS) {
     return(owl_strdup("Zephyr: too many subscriptions\n"));
-  } else if (ret) {
+  } else if (ret || (num <= 0)) {
     return(owl_strdup("Zephyr: error retriving subscriptions\n"));
   }
 
-  out=owl_malloc(num*500);
-  tmpbuff=owl_malloc(num*500);
+  buffsize = (num + 1) * 50;
+  out=owl_malloc(buffsize);
   strcpy(out, "");
   for (i=0; i<num; i++) {
     if ((ret = ZGetSubscriptions(&sub, &one)) != ZERR_NONE) {
       owl_free(out);
-      owl_free(tmpbuff);
       ZFlushSubscriptions();
       out=owl_strdup("Error while getting subscriptions\n");
       return(out);
     } else {
-      sprintf(tmpbuff, "<%s,%s,%s>\n%s", sub.zsub_class, sub.zsub_classinst, sub.zsub_recipient, out);
+      int tmpbufflen;
+      char *tmpbuff;
+      tmpbuff = owl_sprintf("<%s,%s,%s>\n%s", sub.zsub_class, sub.zsub_classinst, sub.zsub_recipient, out);
+      tmpbufflen = strlen(tmpbuff) + 1;
+      if (tmpbufflen > buffsize) {
+        char *out2;
+        buffsize = tmpbufflen * 2;
+        out2 = owl_realloc(out, buffsize);
+        if (out2 == NULL) {
+          owl_free(out);
+          owl_free(tmpbuff);
+          ZFlushSubscriptions();
+          out=owl_strdup("Realloc error while getting subscriptions\n");
+          return(out);    
+        }
+        out = out2;
+      }
       strcpy(out, tmpbuff);
+      owl_free(tmpbuff);
     }
   }
 
-  owl_free(tmpbuff);
   ZFlushSubscriptions();
   return(out);
 #else
