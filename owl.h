@@ -50,12 +50,8 @@ static const char owl_h_fileIdent[] = "$Id$";
 #define BARNOWL_STRINGIFY(x) _STRINGIFY(x)
 #define _STRINGIFY(x) #x
 
-#ifndef OWL_SVN_REVNO
-#define OWL_SVN_REVNO ????
-#endif
-
 #ifndef OWL_VERSION_STRING
-#define OWL_VERSION_STRING "1.0.2.1"
+#define OWL_VERSION_STRING "1.0.3"
 #endif
 
 /* Feature that is being tested to redirect stderr through a pipe. 
@@ -324,8 +320,8 @@ typedef struct _owl_zwrite {
 } owl_zwrite;
 
 typedef struct _owl_pair {
-  void *key;
-  void *value;
+  char *key;
+  char *value;
 } owl_pair;
 
 struct _owl_fmtext_cache;
@@ -366,14 +362,6 @@ typedef struct _owl_popwin {
   int needsfirstrefresh;
   void (*handler) (int ch);
 } owl_popwin;
-
-typedef struct _owl_popexec {
-  int refcount;
-  owl_viewwin *vwin;
-  int winactive;
-  int pid;			/* or 0 if it has terminated */
-  int rfd;  
-} owl_popexec;
 
 typedef SV owl_messagelist;
 
@@ -503,9 +491,11 @@ typedef struct _owl_zbuddylist {
 } owl_zbuddylist;
 
 typedef struct _owl_timer {
-  int direction;
-  time_t starttime;
-  int start;
+  time_t time;
+  int interval;
+  void (*callback)(struct _owl_timer *, void *);
+  void (*destroy)(struct _owl_timer *);
+  void *data;
 } owl_timer;
 
 typedef struct _owl_errqueue {
@@ -522,10 +512,20 @@ typedef struct _owl_obarray {
 } owl_obarray;
 
 typedef struct _owl_dispatch {
-  int fd;           /* FD to watch for dispatch. */
-  void (*cfunc)();  /* C function to dispatch to. */
-  SV *pfunc;        /* Perl function to dispatch to. */
+  int fd;                                 /* FD to watch for dispatch. */
+  int needs_gc;
+  void (*cfunc)(struct _owl_dispatch*);   /* C function to dispatch to. */
+  void (*destroy)(struct _owl_dispatch*); /* Destructor */
+  void *data;
 } owl_dispatch;
+
+typedef struct _owl_popexec {
+  int refcount;
+  owl_viewwin *vwin;
+  int winactive;
+  int pid;			/* or 0 if it has terminated */
+  owl_dispatch dispatch;
+} owl_popexec;
 
 typedef struct _owl_global {
   owl_mainwin mw;
@@ -582,7 +582,6 @@ typedef struct _owl_global {
   aim_conn_t bosconn;
   owl_timer aim_noop_timer;
   owl_timer aim_ignorelogin_timer;
-  owl_timer aim_buddyinfo_timer;
   int aim_loggedin;         /* true if currently logged into AIM */
   int aim_doprocessing;     /* true if we should process AIM events (like pending login) */
   char *aim_screenname;     /* currently logged in AIM screen name */
@@ -593,6 +592,7 @@ typedef struct _owl_global {
   char *response;           /* response to the last question asked */
   int havezephyr;
   int haveaim;
+  int ignoreaimlogin;
   int got_err_signal;	    /* 1 if we got an unexpected signal */
   siginfo_t err_signal_info;
   owl_zbuddylist zbuddies;
@@ -601,7 +601,9 @@ typedef struct _owl_global {
   owl_obarray obarray;
   owl_list dispatchlist;
   int fmtext_seq;          /* Used to invalidate message fmtext caches */
-  } owl_global;
+  GList *timerlist;
+  owl_timer *aim_nop_timer;
+} owl_global;
 
 /* globals */
 extern owl_global g;

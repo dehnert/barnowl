@@ -247,7 +247,7 @@ sub new_command {
         %{$args}
     );
 
-    BarnOwl::new_command_internal($name, $func, $args{summary}, $args{usage}, $args{description});
+    BarnOwl::Internal::new_command($name, $func, $args{summary}, $args{usage}, $args{description});
 }
 
 =head2 new_variable_int NAME [{ARGS}]
@@ -280,17 +280,17 @@ A longer description of the function of the variable
 =cut
 
 sub new_variable_int {
-    unshift @_, \&BarnOwl::new_variable_int_internal, 0;
+    unshift @_, \&BarnOwl::Internal::new_variable_int, 0;
     goto \&_new_variable;
 }
 
 sub new_variable_bool {
-    unshift @_, \&BarnOwl::new_variable_bool_internal, 0;
+    unshift @_, \&BarnOwl::Internal::new_variable_bool, 0;
     goto \&_new_variable;
 }
 
 sub new_variable_string {
-    unshift @_, \&BarnOwl::new_variable_string_internal, "";
+    unshift @_, \&BarnOwl::Internal::new_variable_string, "";
     goto \&_new_variable;
 }
 
@@ -1452,6 +1452,14 @@ Called to display buddy lists for all protocol handlers. The result
 from every function registered with this hook will be appended and
 displayed in a popup window, with zephyr formatting parsed.
 
+=item $getQuickstart
+
+Called by :show quickstart to display 2-5 lines of help on how to
+start using the protocol. The result from every function registered
+with this hook will be appended and displayed in an admin message,
+with zephyr formatting parsed. The format should be
+"@b(Protocol:)\nSome text.\nMore text.\n"
+
 =back
 
 =cut
@@ -1460,7 +1468,8 @@ use Exporter;
 
 our @EXPORT_OK = qw($startup $shutdown
                     $receiveMessage $newMessage
-                    $mainLoop $getBuddyList);
+                    $mainLoop $getBuddyList
+                    $getQuickstart);
 
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 
@@ -1470,6 +1479,7 @@ our $receiveMessage = BarnOwl::Hook->new;
 our $newMessage = BarnOwl::Hook->new;
 our $mainLoop = BarnOwl::Hook->new;
 our $getBuddyList = BarnOwl::Hook->new;
+our $getQuickstart = BarnOwl::Hook->new;
 
 # Internal startup/shutdown routines called by the C code
 
@@ -1572,6 +1582,10 @@ sub _get_blist {
 sub _invalidate_filter {
     my $filter = shift;
     BarnOwl::View::invalidate_filter($filter);
+}
+
+sub _get_quickstart {
+    return join("\n", $getQuickstart->run);
 }
 
 ################################################################################
@@ -1864,6 +1878,37 @@ sub format_message {
       package main;
       no strict 'refs';
       goto \&{$self->{function}};
+    }
+}
+
+package BarnOwl::Timer;
+
+sub new {
+    my $class = shift;
+    my $args = shift;
+
+    my $cb = $args->{cb};
+    die("Invalid callback pased to BarnOwl::Timer\n") unless ref($cb) eq 'CODE';
+
+    my $self = {cb => $cb};
+
+    bless($self, $class);
+
+    $self->{timer} = BarnOwl::Internal::add_timer($args->{after} || 0,
+                                                  $args->{interval} || 0,
+                                                  $self);
+    return $self;
+}
+
+sub do_callback {
+    my $self = shift;
+    $self->{cb}->($self);
+}
+
+sub DESTROY {
+    my $self = shift;
+    if(defined($self->{timer})) {
+        BarnOwl::Internal::remove_timer($self->{timer});
     }
 }
 

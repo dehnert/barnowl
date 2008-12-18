@@ -69,10 +69,14 @@ sub onStart {
         register_filters();
         $BarnOwl::Hooks::mainLoop->add("BarnOwl::Module::Jabber::onMainLoop");
         $BarnOwl::Hooks::getBuddyList->add("BarnOwl::Module::Jabber::onGetBuddyList");
+        $BarnOwl::Hooks::getQuickstart->add("BarnOwl::Module::Jabber::onGetQuickstart");
         $vars{show} = '';
 	BarnOwl::new_variable_bool("jabber:show_offline_buddies",
 				   { default => 1,
 				     summary => 'Show offline or pending buddies.'});
+	BarnOwl::new_variable_bool("jabber:show_logins",
+				   { default => 0,
+				     summary => 'Show login/logout messages.'});
 	BarnOwl::new_variable_bool("jabber:spew",
 				   { default => 0,
 				     summary => 'Display unrecognized Jabber messages.'});
@@ -84,6 +88,12 @@ sub onStart {
 				  { default => 15,
 				    summary => 'After minutes idle, auto extended away.'
 				});
+        # Force these. Reload can screw them up.
+        # Taken from Net::Jabber::Protocol.
+        $Net::XMPP::Protocol::NEWOBJECT{'iq'}       = "Net::Jabber::IQ";
+        $Net::XMPP::Protocol::NEWOBJECT{'message'}  = "Net::Jabber::Message";
+        $Net::XMPP::Protocol::NEWOBJECT{'presence'} = "Net::Jabber::Presence";
+        $Net::XMPP::Protocol::NEWOBJECT{'jid'}      = "Net::Jabber::JID";
     } else {
         # Our owl doesn't support queue_message. Unfortunately, this
         # means it probably *also* doesn't support BarnOwl::error. So just
@@ -210,6 +220,16 @@ sub onGetBuddyList {
         $blist .= getSingleBuddyList($jid);
     }
     return $blist;
+}
+
+sub onGetQuickstart {
+    return <<'EOF'
+@b(Jabber:)
+Type ':jabberlogin @b(username@mit.edu)' to log in to Jabber. The command
+':jroster sub @b(somebody@gmail.com)' will request that they let you message
+them. Once you get a message saying you are subscribed, you can message
+them by typing ':jwrite @b(somebody@gmail.com)' or just 'j @b(somebody)'.
+EOF
 }
 
 ################################################################################
@@ -1024,6 +1044,7 @@ sub process_muc_presence {
 
 
 sub process_presence_available {
+    return unless (BarnOwl::getvar('jabber:show_logins') eq 'on');
     my ( $sid, $p ) = @_;
     my $from = $p->GetFrom('jid')->GetJID('base');
     my $to = $p->GetTo();
@@ -1148,7 +1169,10 @@ sub j2hash {
     $props{sender}     = $from->GetJID('base');
     $props{subject}    = $j->GetSubject() if ( $j->DefinedSubject() );
     $props{thread}     = $j->GetThread() if ( $j->DefinedThread() );
-    $props{body}       = $j->GetBody() if ( $j->DefinedBody() );
+    if ( $j->DefinedBody() ) {
+        $props{body}   = $j->GetBody();
+        $props{body}  =~ s/\xEF\xBB\xBF//g; # Strip stray Byte-Order-Marks.
+    }
     $props{error}      = $j->GetError() if ( $j->DefinedError() );
     $props{error_code} = $j->GetErrorCode() if ( $j->DefinedErrorCode() );
     $props{xml}        = $j->GetXML();

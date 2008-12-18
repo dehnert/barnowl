@@ -53,10 +53,7 @@ int main(int argc, char **argv, char **env)
   char *dir;
   struct termios tio;
   owl_message *m;
-#if OWL_STDERR_REDIR
-  int newstderr;
-#endif
-  
+
   if (!GLIB_CHECK_VERSION (2, 12, 0))
     g_error ("GLib version 2.12.0 or above is needed.");
 
@@ -189,7 +186,7 @@ int main(int argc, char **argv, char **env)
     owl_dispatch *d = owl_malloc(sizeof(owl_dispatch));
     d->fd = STDIN;
     d->cfunc = &owl_process_input;
-    d->pfunc = NULL;
+    d->destroy = NULL;
     owl_select_add_dispatch(d);
   }
   
@@ -200,7 +197,7 @@ int main(int argc, char **argv, char **env)
     owl_dispatch *d = owl_malloc(sizeof(owl_dispatch));
     d->fd = ZGetFD();
     d->cfunc = &owl_zephyr_process_events;
-    d->pfunc = NULL;
+    d->destroy = NULL;
     owl_select_add_dispatch(d);
     owl_global_set_havezephyr(&g);
   }
@@ -209,11 +206,15 @@ int main(int argc, char **argv, char **env)
 
 #if OWL_STDERR_REDIR
   /* Do this only after we've started curses up... */
-  owl_function_debugmsg("startup: doing stderr redirection");
-  newstderr = stderr_replace();
-  owl_muxevents_add(owl_global_get_muxevents(&g), newstderr, OWL_MUX_READ,
-		    stderr_redirect_handler, NULL);
-#endif   
+  {
+    owl_dispatch *d = owl_malloc(sizeof(owl_dispatch));
+    owl_function_debugmsg("startup: doing stderr redirection");
+    d->fd = stderr_replace();
+    d->cfunc = stderr_redirect_handler;
+    d->destroy = NULL;
+    owl_select_add_dispatch(d);
+  }
+#endif
 
   /* create the owl directory, in case it does not exist */
   owl_function_debugmsg("startup: creating owl directory, if not present");
@@ -322,20 +323,19 @@ int main(int argc, char **argv, char **env)
 
   /* welcome message */
   if(owl_messagelist_get_size(owl_global_get_msglist(&g)) == 0) {
-      owl_function_debugmsg("startup: creating splash message");
-      strcpy(startupmsg, "-----------------------------------------------------------------------\n");
-      sprintf(buff,      "Welcome to barnowl version %s.  Press 'h' for on-line help.            \n", OWL_VERSION_STRING);
-      strcat(startupmsg, buff);
-      strcat(startupmsg, "                                                                       \n");
-      strcat(startupmsg, "BarnOwl is free software. Type ':show license' for more                \n");
-      strcat(startupmsg, "information.                                                           \n");
-      strcat(startupmsg, "                                                                 ^ ^   \n");
-      strcat(startupmsg, "                                                                 OvO   \n");
-      strcat(startupmsg, "Please report any bugs or suggestions to bug-barnowl@mit.edu    (   )  \n");
-      strcat(startupmsg, "-----------------------------------------------------------------m-m---\n");
-      owl_function_adminmsg("", startupmsg);
+    owl_function_debugmsg("startup: creating splash message");
+    strcpy(startupmsg, "-----------------------------------------------------------------------\n");
+    sprintf(buff,      "Welcome to barnowl version %s.  Press 'h' for on-line help.            \n", OWL_VERSION_STRING);
+    strcat(startupmsg, buff);
+    strcat(startupmsg, "To see a quick introduction, type ':show quickstart'.                  \n");
+    strcat(startupmsg, "                                                                       \n");
+    strcat(startupmsg, "BarnOwl is free software. Type ':show license' for more                \n");
+    strcat(startupmsg, "information.                                                     ^ ^   \n");
+    strcat(startupmsg, "                                                                 OvO   \n");
+    strcat(startupmsg, "Please report any bugs or suggestions to bug-barnowl@mit.edu    (   )  \n");
+    strcat(startupmsg, "-----------------------------------------------------------------m-m---\n");
+    owl_function_adminmsg("", startupmsg);
   }
-
   sepbar(NULL);
 
   /* process the startup file */
@@ -400,11 +400,13 @@ int main(int argc, char **argv, char **env)
   nexttimediff=10;
   nexttime=time(NULL);
 
-#ifdef HAVE_LIBZEPHYR
-  /* Check for any zephyrs that have come in while we've done init. */
-  owl_zephyr_process_events();
-#endif
-  
+
+  owl_select_add_timer(180, 180, owl_zephyr_buddycheck_timer, NULL, NULL);
+
+  /* If we ever deprecate the mainloop hook, remove this. */
+  owl_select_add_timer(0, 1, owl_perlconfig_mainloop, NULL, NULL);
+
+
   owl_function_debugmsg("startup: entering main loop");
   /* main loop */
   while (1) {
@@ -421,8 +423,6 @@ int main(int argc, char **argv, char **env)
     typwin=owl_global_get_curs_typwin(&g);
 
     followlast=owl_global_should_followlast(&g);
-    
-    owl_perlconfig_mainloop();
 
     /* little hack */
     now=time(NULL);
@@ -448,18 +448,6 @@ int main(int argc, char **argv, char **env)
       if(owl_process_message(m))
         newmsgs = 1;
     }
-
-    /* is it time to check zbuddies? */
-    if (owl_global_is_pseudologins(&g)) {
-      if (owl_timer_is_expired(owl_global_get_zephyr_buddycheck_timer(&g))) {
-	owl_function_debugmsg("Doing zephyr buddy check");
-	owl_function_zephyr_buddy_check(1);
-	owl_timer_reset(owl_global_get_zephyr_buddycheck_timer(&g));
-      }
-    }
-
-    /* dispatch any muxevents */
-    owl_muxevents_dispatch(owl_global_get_muxevents(&g), 0);
 
     /* follow the last message if we're supposed to */
     if (newmsgs && followlast) {
@@ -518,7 +506,7 @@ int main(int argc, char **argv, char **env)
       siginfo_t si;
       int signum;
       if ((signum = owl_global_get_errsignal_and_clear(&g, &si)) > 0) {
-	owl_function_error("Got unexpected signal: %d %s  (code: %d band: %d  errno: %d)", 
+	owl_function_error("Got unexpected signal: %d %s  (code: %d band: %ld  errno: %d)",
 			   signum, signum==SIGPIPE?"SIGPIPE":"SIG????",
 			   si.si_code, si.si_band, si.si_errno);
       }
@@ -623,21 +611,7 @@ int owl_process_message(owl_message *m) {
   return 1;
 }
 
-void owl_process_aim()
-{
-  if (owl_global_is_doaimevents(&g)) {
-    owl_aim_process_events();
-    
-    if (owl_global_is_aimloggedin(&g)) {
-      if (owl_timer_is_expired(owl_global_get_aim_buddyinfo_timer(&g))) {
-        /* owl_buddylist_request_idletimes(owl_global_get_buddylist(&g)); */
-        owl_timer_reset(owl_global_get_aim_buddyinfo_timer(&g));
-      }
-    }
-  }
-}
-
-void owl_process_input()
+void owl_process_input(owl_dispatch *d)
 {
   int ret;
   owl_input j;
@@ -782,11 +756,11 @@ int stderr_replace(void)
 }
 
 /* Sends stderr (read from rfd) messages to the error console */
-void stderr_redirect_handler(int handle, int rfd, int eventmask, void *data) 
+void stderr_redirect_handler(owl_dispatch *d)
 {
   int navail, bread;
   char *buf;
-  /*owl_function_debugmsg("stderr_redirect: called with rfd=%d\n", rfd);*/
+  int rfd = d->fd;
   if (rfd<0) return;
   if (-1 == ioctl(rfd, FIONREAD, (void*)&navail)) {
     return;
@@ -804,3 +778,11 @@ void stderr_redirect_handler(int handle, int rfd, int eventmask, void *data)
 }
 
 #endif /* OWL_STDERR_REDIR */
+
+void owl_zephyr_buddycheck_timer(owl_timer *t, void *data)
+{
+  if (owl_global_is_pseudologins(&g)) {
+    owl_function_debugmsg("Doing zephyr buddy check");
+    owl_function_zephyr_buddy_check(1);
+  }
+}
