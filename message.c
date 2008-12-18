@@ -495,18 +495,6 @@ int owl_message_is_question(owl_message *m)
   return 0;
 }
 
-int owl_message_is_answered(owl_message *m) {
-  char *q;
-  if(!owl_message_is_question(m)) return 0;
-  q = owl_message_get_attribute_value(m, "question");
-  if(!q) return 0;
-  return !strcmp(q, "answered");
-}
-
-void owl_message_set_isanswered(owl_message *m) {
-  owl_message_set_attribute(m, "question", "answered");
-}
-
 int owl_message_is_from_me(owl_message *m)
 {
   if (owl_message_is_type_zephyr(m)) {

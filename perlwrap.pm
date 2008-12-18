@@ -1043,6 +1043,11 @@ sub undelete {
     BarnOwl::message_list()->set_attribute($self => deleted => 0);
 }
 
+sub is_question {
+    my $self = shift;
+    return $self->is_admin && defined($self->{question});
+}
+
 # Serializes the message into something similar to the zwgc->vt format
 sub serialize {
     my ($this) = @_;
@@ -1494,7 +1499,17 @@ sub _load_perl_commands {
                            "format messages using the perl function <function_name>.\n\n" .
                            "SEE ALSO: show styles, view -s, filter -s\n\n" .
                            "DEPRECATED in favor of BarnOwl::create_style(NAME, OBJECT)",
-                          });
+                       });
+    BarnOwl::new_command(yes => \&BarnOwl::Commands::yes_command,
+                       {
+                           summary => 'Answer yes to a question',
+                           usage   => 'yes',
+                       });
+    BarnOwl::new_command(no => \&BarnOwl::Commands::no_command,
+                       {
+                           summary => 'Answer no to a question',
+                           usage   => 'no',
+                       });
 }
 
 sub _load_owlconf {
@@ -1910,6 +1925,43 @@ sub DESTROY {
     if(defined($self->{timer})) {
         BarnOwl::Internal::remove_timer($self->{timer});
     }
+}
+
+package BarnOwl::Commands;
+
+sub answer_question {
+    my $ans = shift;
+    my $m = BarnOwl::getcurmsg();
+    unless(defined($m)) {
+        die("No current message.\n");
+    }
+
+    unless($m->is_question) {
+        die("That message isn't a question.\n");
+    }
+
+    if(defined($m->get_meta('answered'))) {
+        die("You already answered that question.\n");
+    }
+
+    my $cmd = $m->{$ans."command"};
+
+    if(!defined($cmd)) {
+        die("No '$ans' command on this message!\n");
+    }
+
+    BarnOwl::command($cmd);
+
+    $m->set_meta(answered => $ans);
+    return;
+}
+
+sub yes_command {
+    answer_question('yes');
+}
+
+sub no_command {
+    answer_question('no');
 }
 
 
