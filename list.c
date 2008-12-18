@@ -131,7 +131,7 @@ void owl_list_free_simple(owl_list *l)
 int owl_list_regtest(void) {
   int numfailed=0;
   owl_list l;
-  int i;
+  intptr_t i;
 
   printf("# BEGIN testing owl_list\n");
 
@@ -143,7 +143,7 @@ int owl_list_regtest(void) {
   FAIL_UNLESS("size", 10 == owl_list_get_size(&l));
 
   for(i=0;i<10;i++) {
-    FAIL_UNLESS("get", i == (int)owl_list_get_element(&l, i));
+    FAIL_UNLESS("get", i == (intptr_t)owl_list_get_element(&l, i));
   }
 
   for(i=0;i<10;i++) {
@@ -153,7 +153,7 @@ int owl_list_regtest(void) {
   FAIL_UNLESS("size", 20 == owl_list_get_size(&l));
 
   for(i=10;i<20;i++) {
-    FAIL_UNLESS("get", i == (int)owl_list_get_element(&l, i));
+    FAIL_UNLESS("get", i == (intptr_t)owl_list_get_element(&l, i));
   }
 
   for(i=9;i>=0;i--) {
@@ -163,9 +163,9 @@ int owl_list_regtest(void) {
   FAIL_UNLESS("size", 30 == owl_list_get_size(&l));
 
   for(i=0;i<10;i++) {
-    FAIL_UNLESS("get beg", -i == (int)owl_list_get_element(&l, i));
-    FAIL_UNLESS("get mid", i == (int)owl_list_get_element(&l, 10+i));
-    FAIL_UNLESS("get end", 10+i == (int)owl_list_get_element(&l, 20+i));
+    FAIL_UNLESS("get beg", -i == (intptr_t)owl_list_get_element(&l, i));
+    FAIL_UNLESS("get mid", i == (intptr_t)owl_list_get_element(&l, 10+i));
+    FAIL_UNLESS("get end", 10+i == (intptr_t)owl_list_get_element(&l, 20+i));
   }
   
   printf("# END testing owl_list\n");
