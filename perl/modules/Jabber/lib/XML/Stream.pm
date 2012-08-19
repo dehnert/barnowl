@@ -2120,7 +2120,7 @@ sub SASLClient
                                           }
                                );
 
-    $self->{SIDS}->{$sid}->{sasl}->{client} = $sasl->client_new('xmpp', $self->{SIDS}->{$sid}->{hostname});
+    $self->{SIDS}->{$sid}->{sasl}->{client} = $sasl->client_new('xmpp', $self->{SIDS}->{$sid}->{to});
     $self->{SIDS}->{$sid}->{sasl}->{username} = $username;
     $self->{SIDS}->{$sid}->{sasl}->{password} = $password;
     $self->{SIDS}->{$sid}->{sasl}->{authed} = 0;
